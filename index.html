@@ -2,7 +2,10 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0"
+    />
     <title>Smart Finance Dashboard</title>
 
     <!-- Google Font -->
@@ -29,12 +32,10 @@
   <body>
     <div class="dashboard-container">
       <!-- 1. TOP HEADER & THEME TOGGLE -->
-      <header class="d-flex justify-content-between align-items-center mb-4">
+      <header class="d-flex justify-content-between align-items-center mb-3">
         <div>
-          <h1 class="h3 m-0">Smart Budget</h1>
-          <p class="subtitle m-0">
-            Track, analyze, and optimize your cash flow
-          </p>
+          <h1 class="h4 m-0">Smart Budget</h1>
+          <p class="subtitle m-0">Track, analyze, & optimize cash flow</p>
         </div>
 
         <div class="theme-switch-wrapper">
@@ -72,18 +73,18 @@
 
       <!-- 4. EXPENSE CHART SECTION -->
       <section class="card-box text-center">
-        <h3 class="h5 mb-3">Expense Breakdown</h3>
-        <div class="chart-container" style="max-width: 260px; margin: 0 auto">
+        <h3 class="h6 mb-3">Expense Breakdown</h3>
+        <div class="chart-container" style="max-width: 220px; margin: 0 auto">
           <canvas id="categoryChart"></canvas>
         </div>
       </section>
 
       <!-- 5. ADD NEW TRANSACTION FORM -->
       <section class="card-box">
-        <h3 class="h5 mb-3">Add New Transaction</h3>
+        <h3 class="h6 mb-3">Add New Transaction</h3>
 
         <form id="form">
-          <!-- Step A: Income vs Expense Segmented Selector -->
+          <!-- Step A: Income vs Expense Selector -->
           <div class="mb-3">
             <label class="form-label">Transaction Type</label>
             <div class="type-toggle-group">
@@ -113,14 +114,14 @@
               type="text"
               id="text"
               class="form-control"
-              placeholder="e.g. Netflix Subscription, Grocery Shopping..."
+              placeholder="e.g. Netflix, Groceries..."
               required
             />
           </div>
 
-          <!-- Step C: Amount & Category Side by Side -->
-          <div class="row g-3 mb-4">
-            <div class="col-6">
+          <!-- Step C: Amount & Category (Stack on mobile using col-12 col-sm-6) -->
+          <div class="row g-2 mb-3">
+            <div class="col-12 col-sm-6">
               <label for="amount" class="form-label">Amount ($)</label>
               <input
                 type="number"
@@ -132,7 +133,7 @@
               />
             </div>
 
-            <div class="col-6">
+            <div class="col-12 col-sm-6">
               <label for="category" class="form-label">Category</label>
               <select id="category" class="form-select">
                 <option value="General">General</option>
@@ -151,20 +152,20 @@
 
       <!-- 6. TRANSACTION HISTORY -->
       <section class="card-box">
-        <h3 class="h5 mb-3">Transaction History</h3>
+        <h3 class="h6 mb-3">Transaction History</h3>
 
-        <!-- Search & Filter Controls -->
+        <!-- Search & Filters (Responsive Stacking for Mobile) -->
         <div class="row g-2 mb-3">
-          <div class="col-md-6">
+          <div class="col-12">
             <input
               type="text"
               id="search-input"
               class="form-control"
-              placeholder="🔎 Search description or category..."
+              placeholder="🔎 Search transactions..."
               oninput="filterTransactions()"
             />
           </div>
-          <div class="col-6 col-md-3">
+          <div class="col-6">
             <select
               id="filter-category"
               class="form-select"
@@ -179,7 +180,7 @@
               <option value="Entertainment">Entertainment</option>
             </select>
           </div>
-          <div class="col-6 col-md-3">
+          <div class="col-6">
             <select
               id="sort-order"
               class="form-select"
@@ -199,7 +200,7 @@
         <div class="d-flex gap-2 mt-3">
           <button
             type="button"
-            class="btn btn-outline-primary flex-grow-1 font-weight-bold"
+            class="btn btn-sm btn-outline-primary flex-grow-1 fw-bold"
             onclick="exportToCSV()"
           >
             <i class="bi bi-download me-1"></i> Export CSV
@@ -207,17 +208,17 @@
 
           <button
             type="button"
-            class="btn btn-outline-danger flex-grow-1 font-weight-bold"
+            class="btn btn-sm btn-outline-danger flex-grow-1 fw-bold"
             onclick="clearAllData()"
           >
-            <i class="bi bi-trash3 me-1"></i> Clear All Data
+            <i class="bi bi-trash3 me-1"></i> Clear All
           </button>
         </div>
       </section>
 
       <!-- 7. CATEGORY BUDGETS -->
       <section class="card-box">
-        <h3 class="h5 mb-3">Category Budgets</h3>
+        <h3 class="h6 mb-3">Category Budgets</h3>
         <div id="budgets-container"></div>
       </section>
     </div>

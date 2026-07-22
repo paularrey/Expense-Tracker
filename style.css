@@ -1,5 +1,5 @@
 /* ==========================================================================
-   1. CSS VARIABLES (DESIGN SYSTEM & THEME TOKENS)
+   1. CSS VARIABLES (DESIGN SYSTEM)
    ========================================================================== */
 
 :root {
@@ -18,27 +18,36 @@
   --expense-color: #f43f5e; /* Rose Red */
   --warning-color: #f59e0b; /* Amber */
 
-  /* Shadow Elevation */
-  --card-shadow:
-    0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
+  /* Radius & Elevation */
+  --card-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
   --radius-lg: 16px;
   --radius-md: 10px;
 }
 
-/* Dark Mode Theme Overrides */
+/* Dark Mode Overrides */
 body.dark-mode {
   --bg-main: #0b0f19;
   --bg-card: #151c2c;
   --bg-input: #1e293b;
   --text-main: #f8fafc;
   --text-muted: #94a3b8;
-  --border-color: #334155;
-  --card-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+  --border-color: #243044;
+  --card-shadow: none;
 }
 
 /* ==========================================================================
-   2. GLOBAL BASE STYLES
+   2. BASE STYLES
    ========================================================================== */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  overflow-x: hidden; /* Prevents horizontal screen wobbling on mobile */
+  width: 100%;
+}
 
 body {
   font-family: "Plus Jakarta Sans", sans-serif;
@@ -48,28 +57,26 @@ body {
     background-color 0.3s ease,
     color 0.3s ease;
   min-height: 100vh;
-  padding: 30px 15px;
+  padding: 20px 12px;
+  margin: 0;
 }
 
 .dashboard-container {
-  max-width: 720px;
+  max-width: 680px;
   margin: 0 auto;
+  width: 100%;
 }
 
-/* Base Card Styling */
+/* Clean Main Card Sections */
 .card-box {
   background-color: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
-  padding: 24px;
-  margin-bottom: 24px;
+  padding: 20px;
+  margin-bottom: 16px;
   box-shadow: var(--card-shadow);
-  transition:
-    background-color 0.3s ease,
-    border-color 0.3s ease;
 }
 
-/* Headers & Titles */
 h1,
 h2,
 h3,
@@ -80,25 +87,25 @@ h4 {
 
 .subtitle {
   color: var(--text-muted);
-  font-size: 0.95rem;
+  font-size: 0.88rem;
 }
 
 /* ==========================================================================
-   3. THEME TOGGLE SWITCH
+   3. THEME SWITCH
    ========================================================================== */
 
 .theme-switch-wrapper {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 1.1rem;
+  font-size: 1rem;
 }
 
 .theme-switch {
   position: relative;
   display: inline-block;
-  width: 48px;
-  height: 26px;
+  width: 46px;
+  height: 24px;
 }
 
 .theme-switch input {
@@ -124,8 +131,8 @@ h4 {
   content: "";
   height: 18px;
   width: 18px;
-  left: 4px;
-  bottom: 4px;
+  left: 3px;
+  bottom: 3px;
   background-color: white;
   transition: 0.3s;
   border-radius: 50%;
@@ -140,38 +147,36 @@ input:checked + .slider:before {
 }
 
 /* ==========================================================================
-   4. FINANCIAL SUMMARY CARDS
+   4. FINANCIAL SUMMARY DISPLAY
    ========================================================================== */
 
 .balance-card {
   text-align: center;
-  background: linear-gradient(
-    135deg,
-    var(--accent-primary),
-    var(--accent-hover)
-  );
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
   color: #ffffff;
   border: none;
+  padding: 24px 16px;
 }
 
 .balance-card h2 {
-  font-size: 0.85rem;
-  letter-spacing: 1.5px;
+  font-size: 0.8rem;
+  letter-spacing: 1.2px;
   text-transform: uppercase;
   color: rgba(255, 255, 255, 0.8);
   margin-bottom: 6px;
 }
 
 .balance-card h1 {
-  font-size: 2.5rem;
+  font-size: 2.2rem;
   color: #ffffff;
   margin: 0;
+  word-break: break-word;
 }
 
 .stats-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  gap: 12px;
 }
 
 .stat-box {
@@ -179,17 +184,18 @@ input:checked + .slider:before {
 }
 
 .stat-box h3 {
-  font-size: 0.85rem;
+  font-size: 0.78rem;
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .money {
-  font-size: 1.4rem;
+  font-size: 1.25rem;
   font-weight: 700;
   margin: 0;
+  word-break: break-word;
 }
 
 .money.plus {
@@ -203,7 +209,6 @@ input:checked + .slider:before {
    5. FORM & INPUT CONTROLS
    ========================================================================== */
 
-/* Modern Segmented Type Switcher (Income vs Expense) */
 .type-toggle-group {
   display: flex;
   background-color: var(--bg-input);
@@ -223,6 +228,7 @@ input:checked + .slider:before {
   border-radius: 8px;
   transition: all 0.2s ease;
   cursor: pointer;
+  font-size: 0.9rem;
 }
 
 .type-toggle-btn.active-expense {
@@ -235,11 +241,11 @@ input:checked + .slider:before {
   color: #ffffff;
 }
 
-/* Custom Styled Inputs */
 .form-label {
   color: var(--text-main);
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
+  margin-bottom: 6px;
 }
 
 .form-control,
@@ -248,8 +254,9 @@ input:checked + .slider:before {
   color: var(--text-main) !important;
   border: 1px solid var(--border-color) !important;
   border-radius: var(--radius-md) !important;
-  padding: 12px 14px;
-  font-size: 0.95rem;
+  padding: 10px 12px;
+  font-size: 0.9rem;
+  width: 100%;
 }
 
 .form-control:focus,
@@ -258,33 +265,24 @@ input:checked + .slider:before {
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2) !important;
 }
 
-/* High Contrast Placeholders */
 .form-control::placeholder {
   color: var(--text-muted) !important;
-  opacity: 0.7;
+  opacity: 0.75;
 }
 
-/* Primary Action Button */
 .btn-submit {
   background-color: var(--accent-primary);
   color: #ffffff;
   border: none;
   border-radius: var(--radius-md);
-  padding: 14px;
+  padding: 12px;
   font-weight: 700;
   width: 100%;
-  transition:
-    background-color 0.2s ease,
-    transform 0.1s ease;
-}
-
-.btn-submit:hover {
-  background-color: var(--accent-hover);
-  color: #ffffff;
+  font-size: 0.95rem;
 }
 
 /* ==========================================================================
-   6. TRANSACTION HISTORY LIST & BUTTONS
+   6. TRANSACTION HISTORY LIST
    ========================================================================== */
 
 .list {
@@ -297,52 +295,69 @@ input:checked + .slider:before {
   background-color: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
-  padding: 14px 16px;
+  padding: 12px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 10px;
-  transition: transform 0.15s ease;
-}
-
-.list li:hover {
-  transform: translateY(-2px);
+  margin-bottom: 8px;
+  gap: 8px;
 }
 
 .list li.plus {
-  border-left: 5px solid var(--income-color);
+  border-left: 4px solid var(--income-color);
 }
-
 .list li.minus {
-  border-left: 5px solid var(--expense-color);
+  border-left: 4px solid var(--expense-color);
 }
 
-/* Action Buttons (Separated, Clean Hover Glows) */
-.action-buttons {
+.transaction-info {
+  min-width: 0; /* Enables text truncation without breaking flexbox */
+  flex: 1;
+}
+
+.transaction-title {
+  font-weight: 600;
+  color: var(--text-main);
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.transaction-cat {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.transaction-right {
   display: flex;
-  gap: 6px;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0; /* Prevents action buttons from getting squashed */
 }
 
 .btn-action {
   background: transparent;
-  border: none;
-  width: 34px;
-  height: 34px;
-  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   color: var(--text-muted);
-  transition: all 0.2s ease;
   cursor: pointer;
+  padding: 0;
 }
 
-.btn-action.edit-btn:hover {
+.btn-action.edit-btn:hover,
+.btn-action.edit-btn:active {
   background-color: rgba(245, 158, 11, 0.15);
   color: var(--warning-color);
 }
 
-.btn-action.delete-btn:hover {
+.btn-action.delete-btn:hover,
+.btn-action.delete-btn:active {
   background-color: rgba(244, 63, 94, 0.15);
   color: var(--expense-color);
 }
@@ -352,37 +367,37 @@ input:checked + .slider:before {
    ========================================================================== */
 
 .budget-card {
-  background-color: var(--bg-input);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  padding: 14px;
-  margin-bottom: 12px;
+  border-bottom: 1px solid var(--border-color);
+  padding: 10px 0;
+}
+
+.budget-card:last-child {
+  border-bottom: none;
 }
 
 .budget-header {
   display: flex;
   justify-content: space-between;
   font-weight: 600;
-  font-size: 0.9rem;
-  margin-bottom: 8px;
+  font-size: 0.85rem;
+  margin-bottom: 6px;
 }
 
 .progress-bar-background {
-  background-color: var(--border-color);
-  height: 8px;
-  border-radius: 4px;
+  background-color: var(--bg-input);
+  height: 6px;
+  border-radius: 3px;
   overflow: hidden;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .progress-bar-fill {
   height: 100%;
-  border-radius: 4px;
-  transition: width 0.4s ease;
+  border-radius: 3px;
 }
 
 .budget-status {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   font-weight: 600;
 }
 
@@ -394,4 +409,43 @@ input:checked + .slider:before {
 }
 .status-danger {
   color: var(--expense-color);
+}
+
+/* ==========================================================================
+   8. SEAMLESS MOBILE-FIRST MEDIA QUERIES (< 576px)
+   ========================================================================== */
+
+@media (max-width: 576px) {
+  body {
+    padding: 12px 8px; /* Maximize usable screen width */
+  }
+
+  /* Drop "div-in-a-div" floating card boxes on mobile screens */
+  .card-box {
+    border-radius: 12px;
+    padding: 16px 12px;
+    margin-bottom: 12px;
+    border: 1px solid var(--border-color);
+  }
+
+  .balance-card h1 {
+    font-size: 1.8rem;
+  }
+
+  .money {
+    font-size: 1.1rem;
+  }
+
+  /* Make header stack gracefully */
+  header {
+    margin-bottom: 16px !important;
+  }
+
+  header h1 {
+    font-size: 1.25rem;
+  }
+
+  .subtitle {
+    font-size: 0.8rem;
+  }
 }

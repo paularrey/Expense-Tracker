@@ -126,7 +126,7 @@ function renderHistory(filteredList = null) {
     filteredList !== null ? filteredList : dummyTransactions;
 
   if (!transactionsToDisplay || transactionsToDisplay.length === 0) {
-    list.innerHTML = `<li style="text-align: center; color: var(--text-muted); padding: 20px; justify-content: center;">No transactions found 🚀</li>`;
+    list.innerHTML = `<li style="text-align: center; color: var(--text-muted); padding: 16px; justify-content: center; width: 100%;">No transactions found 🚀</li>`;
     return;
   }
 
@@ -138,41 +138,37 @@ function renderHistory(filteredList = null) {
     const li = document.createElement("li");
     li.classList.add(borderClass);
 
-    // Separated ghost buttons for Edit and Delete
     li.innerHTML = `
-      <div>
-        <div class="fw-bold" style="color: var(--text-main);">${transaction.text}</div>
-        <small style="color: var(--text-muted);">${transaction.category || "General"}</small>
+      <div class="transaction-info">
+        <div class="transaction-title">${transaction.text}</div>
+        <div class="transaction-cat">${transaction.category || "General"}</div>
       </div>
       
-      <div class="d-flex align-items-center gap-3">
-        <span class="fw-bold" style="color: ${isExpense ? "var(--expense-color)" : "var(--income-color)"};">
+      <div class="transaction-right">
+        <span class="fw-bold" style="font-size: 0.9rem; color: ${isExpense ? "var(--expense-color)" : "var(--income-color)"};">
           ${sign}$${Math.abs(transaction.amount).toFixed(2)}
         </span>
         
-        <div class="action-buttons">
-          <button 
-            class="btn-action edit-btn" 
-            onclick="editTransaction(${transaction.id})"
-            title="Edit Transaction"
-          >
-            <i class="bi bi-pencil"></i>
-          </button>
-          <button 
-            class="btn-action delete-btn" 
-            onclick="deleteTransaction(${transaction.id})"
-            title="Delete Transaction"
-          >
-            <i class="bi bi-trash3"></i>
-          </button>
-        </div>
+        <button 
+          class="btn-action edit-btn" 
+          onclick="editTransaction(${transaction.id})"
+          title="Edit"
+        >
+          <i class="bi bi-pencil"></i>
+        </button>
+        <button 
+          class="btn-action delete-btn" 
+          onclick="deleteTransaction(${transaction.id})"
+          title="Delete"
+        >
+          <i class="bi bi-trash3"></i>
+        </button>
       </div>
     `;
 
     list.appendChild(li);
   });
 }
-
 /* ==========================================================================
    7. SEARCH, CATEGORY FILTER & SORTING ENGINE
    ========================================================================== */

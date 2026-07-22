@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Smart Finance Dashboard</title>
+    <link rel="stylesheet" href="style.css" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div class="dashboard-container">
+      <!-- 1. TOP HEADER & THEME TOGGLE -->
+      <header>
+        <div
+          style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+          "
+        >
+          <h2 style="margin: 0">Expense Tracker</h2>
+
+          <div class="theme-switch-wrapper">
+            <span>☀️</span>
+            <label class="theme-switch">
+              <input
+                type="checkbox"
+                id="theme-toggle"
+                onchange="toggleTheme()"
+              />
+              <span class="slider round"></span>
+            </label>
+            <span>🌙</span>
+          </div>
+        </div>
+
+        <h1>Smart Budget Dashboard</h1>
+        <p class="subtitle">Track, analyze, and optimize your cash flow</p>
+      </header>
+
+      <!-- 2. BALANCE DISPLAY -->
+      <section class="balance-card">
+        <h2>YOUR BALANCE</h2>
+        <h1 id="balance">$0.00</h1>
+      </section>
+
+      <!-- 3. INCOME & EXPENSES SUMMARY -->
+      <section class="stats-grid">
+        <div class="stat-box income">
+          <h3>Total Income</h3>
+          <p id="money-plus" class="money plus">+$0.00</p>
+        </div>
+        <div class="stat-box expense">
+          <h3>Total Expenses</h3>
+          <p id="money-minus" class="money minus">-$0.00</p>
+        </div>
+      </section>
+
+      <!-- 4. EXPENSE CHART SECTION -->
+      <section
+        class="chart-section"
+        style="
+          background: #1e293b;
+          padding: 20px;
+          border-radius: 12px;
+          margin: 20px 0;
+          text-align: center;
+        "
+      >
+        <h3>Expense Breakdown</h3>
+        <div
+          class="chart-container"
+          style="max-width: 280px; margin: 15px auto 0"
+        >
+          <canvas id="categoryChart"></canvas>
+        </div>
+      </section>
+
+      <!-- 5. ADD NEW TRANSACTION FORM -->
+      <section class="form-section">
+        <h3>Add New Transaction</h3>
+        <form id="form">
+          <div class="form-control">
+            <label for="text">Description</label>
+            <input
+              type="text"
+              id="text"
+              placeholder="e.g., Salary, Coffee, Rent..."
+              required
+              autocomplete="off"
+            />
+          </div>
+
+          <div class="form-control">
+            <label for="category">Category</label>
+            <select id="category">
+              <option value="General">🏷️ General</option>
+              <option value="Food">🍔 Food</option>
+              <option value="Rent & Housing">🏠 Rent & Housing</option>
+              <option value="Salary">💼 Salary & Income</option>
+              <option value="Entertainment">🎮 Entertainment</option>
+              <option value="Utilities">⚡ Utilities</option>
+            </select>
+          </div>
+
+          <div class="form-control">
+            <label for="amount">Amount</label>
+            <span class="input-hint"
+              >Use negative numbers for expenses (e.g., -50) and positive for
+              income (e.g., 2000)</span
+            >
+            <input
+              type="number"
+              step="0.01"
+              id="amount"
+              placeholder="0.00"
+              required
+            />
+          </div>
+
+          <button class="btn">Add Transaction</button>
+        </form>
+      </section>
+
+      <!-- 6. TRANSACTION HISTORY (WITH SEARCH, FILTER & SORT) -->
+      <section class="history-section" style="margin-top: 30px">
+        <h3>Transaction History</h3>
+
+        <div
+          style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap"
+        >
+          <!-- Search Field -->
+          <input
+            type="text"
+            id="search-input"
+            placeholder="🔎 Search transactions..."
+            oninput="filterTransactions()"
+            style="
+              flex: 2;
+              min-width: 160px;
+              padding: 10px;
+              border-radius: 6px;
+              border: 1px solid #444;
+              background: #1e1e1e;
+              color: #fff;
+            "
+          />
+
+          <!-- Category Filter -->
+          <select
+            id="filter-category"
+            onchange="filterTransactions()"
+            style="
+              flex: 1;
+              min-width: 130px;
+              padding: 10px;
+              border-radius: 6px;
+              border: 1px solid #444;
+              background: #1e1e1e;
+              color: #fff;
+            "
+          >
+            <option value="All">All Categories</option>
+            <option value="Rent & Housing">Rent & Housing</option>
+            <option value="Food">Food</option>
+            <option value="Utilities">Utilities</option>
+            <option value="Salary">Salary</option>
+            <option value="General">General</option>
+            <option value="Entertainment">Entertainment</option>
+          </select>
+
+          <!-- Sort Order Dropdown -->
+          <select
+            id="sort-order"
+            onchange="filterTransactions()"
+            style="
+              flex: 1;
+              min-width: 130px;
+              padding: 10px;
+              border-radius: 6px;
+              border: 1px solid #444;
+              background: #1e1e1e;
+              color: #fff;
+            "
+          >
+            <option value="newest">📅 Newest First</option>
+            <option value="oldest">📅 Oldest First</option>
+            <option value="highest">💵 Highest Amount</option>
+            <option value="lowest">💵 Lowest Amount</option>
+          </select>
+        </div>
+
+        <ul id="list" class="list"></ul>
+
+        <!-- Export & Clear Buttons -->
+        <div
+          class="actions-container"
+          style="margin-top: 15px; display: flex; gap: 10px"
+        >
+          <button
+            type="button"
+            id="export-btn"
+            class="btn"
+            onclick="exportToCSV()"
+            style="
+              flex: 1;
+              height: auto;
+              padding: 10px;
+              background-color: #2196f3;
+              color: white;
+              cursor: pointer;
+            "
+          >
+            📥 Export CSV
+          </button>
+
+          <button
+            type="button"
+            id="clear-btn"
+            class="btn"
+            onclick="clearAllData()"
+            style="
+              flex: 1;
+              height: auto;
+              padding: 10px;
+              background-color: #f44336;
+              color: white;
+              cursor: pointer;
+            "
+          >
+            🧹 Clear All Data
+          </button>
+        </div>
+      </section>
+
+      <!-- 7. CATEGORY BUDGETS (MOVED TO BOTTOM) -->
+      <section class="budgets-section" style="margin-top: 30px">
+        <h3>Category Budgets</h3>
+        <div id="budgets-container" class="budgets-container">
+          <!-- JavaScript dynamically renders progress bars here -->
+        </div>
+      </section>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

@@ -4,249 +4,226 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Smart Finance Dashboard</title>
-    <link rel="stylesheet" href="style.css" />
+
+    <!-- Google Font -->
     <link
       href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
+
+    <!-- Bootstrap 5 CSS -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+
+    <!-- Bootstrap Icons -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+    />
+
+    <!-- Custom Design Styles -->
+    <link rel="stylesheet" href="style.css" />
   </head>
   <body>
     <div class="dashboard-container">
       <!-- 1. TOP HEADER & THEME TOGGLE -->
-      <header>
-        <div
-          style="
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-          "
-        >
-          <h2 style="margin: 0">Expense Tracker</h2>
-
-          <div class="theme-switch-wrapper">
-            <span>☀️</span>
-            <label class="theme-switch">
-              <input
-                type="checkbox"
-                id="theme-toggle"
-                onchange="toggleTheme()"
-              />
-              <span class="slider round"></span>
-            </label>
-            <span>🌙</span>
-          </div>
+      <header class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h1 class="h3 m-0">Smart Budget</h1>
+          <p class="subtitle m-0">
+            Track, analyze, and optimize your cash flow
+          </p>
         </div>
 
-        <h1>Smart Budget Dashboard</h1>
-        <p class="subtitle">Track, analyze, and optimize your cash flow</p>
+        <div class="theme-switch-wrapper">
+          <span>☀️</span>
+          <label class="theme-switch">
+            <input type="checkbox" id="theme-toggle" onchange="toggleTheme()" />
+            <span class="slider round"></span>
+          </label>
+          <span>🌙</span>
+        </div>
       </header>
 
       <!-- 2. BALANCE DISPLAY -->
-      <section class="balance-card">
-        <h2>YOUR BALANCE</h2>
+      <section class="card-box balance-card">
+        <h2>Total Balance</h2>
         <h1 id="balance">$0.00</h1>
       </section>
 
       <!-- 3. INCOME & EXPENSES SUMMARY -->
-      <section class="stats-grid">
-        <div class="stat-box income">
-          <h3>Total Income</h3>
-          <p id="money-plus" class="money plus">+$0.00</p>
-        </div>
-        <div class="stat-box expense">
-          <h3>Total Expenses</h3>
-          <p id="money-minus" class="money minus">-$0.00</p>
+      <section class="card-box">
+        <div class="stats-grid">
+          <div class="stat-box">
+            <h3>Total Income</h3>
+            <p id="money-plus" class="money plus">+$0.00</p>
+          </div>
+          <div
+            class="stat-box"
+            style="border-left: 1px solid var(--border-color)"
+          >
+            <h3>Total Expenses</h3>
+            <p id="money-minus" class="money minus">-$0.00</p>
+          </div>
         </div>
       </section>
 
       <!-- 4. EXPENSE CHART SECTION -->
-      <section
-        class="chart-section"
-        style="
-          background: #1e293b;
-          padding: 20px;
-          border-radius: 12px;
-          margin: 20px 0;
-          text-align: center;
-        "
-      >
-        <h3>Expense Breakdown</h3>
-        <div
-          class="chart-container"
-          style="max-width: 280px; margin: 15px auto 0"
-        >
+      <section class="card-box text-center">
+        <h3 class="h5 mb-3">Expense Breakdown</h3>
+        <div class="chart-container" style="max-width: 260px; margin: 0 auto">
           <canvas id="categoryChart"></canvas>
         </div>
       </section>
 
       <!-- 5. ADD NEW TRANSACTION FORM -->
-      <section class="form-section">
-        <h3>Add New Transaction</h3>
+      <section class="card-box">
+        <h3 class="h5 mb-3">Add New Transaction</h3>
+
         <form id="form">
-          <div class="form-control">
-            <label for="text">Description</label>
+          <!-- Step A: Income vs Expense Segmented Selector -->
+          <div class="mb-3">
+            <label class="form-label">Transaction Type</label>
+            <div class="type-toggle-group">
+              <button
+                type="button"
+                id="type-expense-btn"
+                class="type-toggle-btn active-expense"
+                onclick="setTransactionType('expense')"
+              >
+                💸 Expense
+              </button>
+              <button
+                type="button"
+                id="type-income-btn"
+                class="type-toggle-btn"
+                onclick="setTransactionType('income')"
+              >
+                💰 Income
+              </button>
+            </div>
+          </div>
+
+          <!-- Step B: Description Input -->
+          <div class="mb-3">
+            <label for="text" class="form-label">Description</label>
             <input
               type="text"
               id="text"
-              placeholder="e.g., Salary, Coffee, Rent..."
-              required
-              autocomplete="off"
-            />
-          </div>
-
-          <div class="form-control">
-            <label for="category">Category</label>
-            <select id="category">
-              <option value="General">🏷️ General</option>
-              <option value="Food">🍔 Food</option>
-              <option value="Rent & Housing">🏠 Rent & Housing</option>
-              <option value="Salary">💼 Salary & Income</option>
-              <option value="Entertainment">🎮 Entertainment</option>
-              <option value="Utilities">⚡ Utilities</option>
-            </select>
-          </div>
-
-          <div class="form-control">
-            <label for="amount">Amount</label>
-            <span class="input-hint"
-              >Use negative numbers for expenses (e.g., -50) and positive for
-              income (e.g., 2000)</span
-            >
-            <input
-              type="number"
-              step="0.01"
-              id="amount"
-              placeholder="0.00"
+              class="form-control"
+              placeholder="e.g. Netflix Subscription, Grocery Shopping..."
               required
             />
           </div>
 
-          <button class="btn">Add Transaction</button>
+          <!-- Step C: Amount & Category Side by Side -->
+          <div class="row g-3 mb-4">
+            <div class="col-6">
+              <label for="amount" class="form-label">Amount ($)</label>
+              <input
+                type="number"
+                step="0.01"
+                id="amount"
+                class="form-control"
+                placeholder="0.00"
+                required
+              />
+            </div>
+
+            <div class="col-6">
+              <label for="category" class="form-label">Category</label>
+              <select id="category" class="form-select">
+                <option value="General">General</option>
+                <option value="Food">Food</option>
+                <option value="Rent & Housing">Rent & Housing</option>
+                <option value="Utilities">Utilities</option>
+                <option value="Entertainment">Entertainment</option>
+                <option value="Salary">Salary</option>
+              </select>
+            </div>
+          </div>
+
+          <button id="submit-btn" class="btn-submit">Add Transaction</button>
         </form>
       </section>
 
-      <!-- 6. TRANSACTION HISTORY (WITH SEARCH, FILTER & SORT) -->
-      <section class="history-section" style="margin-top: 30px">
-        <h3>Transaction History</h3>
+      <!-- 6. TRANSACTION HISTORY -->
+      <section class="card-box">
+        <h3 class="h5 mb-3">Transaction History</h3>
 
-        <div
-          style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap"
-        >
-          <!-- Search Field -->
-          <input
-            type="text"
-            id="search-input"
-            placeholder="🔎 Search transactions..."
-            oninput="filterTransactions()"
-            style="
-              flex: 2;
-              min-width: 160px;
-              padding: 10px;
-              border-radius: 6px;
-              border: 1px solid #444;
-              background: #1e1e1e;
-              color: #fff;
-            "
-          />
-
-          <!-- Category Filter -->
-          <select
-            id="filter-category"
-            onchange="filterTransactions()"
-            style="
-              flex: 1;
-              min-width: 130px;
-              padding: 10px;
-              border-radius: 6px;
-              border: 1px solid #444;
-              background: #1e1e1e;
-              color: #fff;
-            "
-          >
-            <option value="All">All Categories</option>
-            <option value="Rent & Housing">Rent & Housing</option>
-            <option value="Food">Food</option>
-            <option value="Utilities">Utilities</option>
-            <option value="Salary">Salary</option>
-            <option value="General">General</option>
-            <option value="Entertainment">Entertainment</option>
-          </select>
-
-          <!-- Sort Order Dropdown -->
-          <select
-            id="sort-order"
-            onchange="filterTransactions()"
-            style="
-              flex: 1;
-              min-width: 130px;
-              padding: 10px;
-              border-radius: 6px;
-              border: 1px solid #444;
-              background: #1e1e1e;
-              color: #fff;
-            "
-          >
-            <option value="newest">📅 Newest First</option>
-            <option value="oldest">📅 Oldest First</option>
-            <option value="highest">💵 Highest Amount</option>
-            <option value="lowest">💵 Lowest Amount</option>
-          </select>
+        <!-- Search & Filter Controls -->
+        <div class="row g-2 mb-3">
+          <div class="col-md-6">
+            <input
+              type="text"
+              id="search-input"
+              class="form-control"
+              placeholder="🔎 Search description or category..."
+              oninput="filterTransactions()"
+            />
+          </div>
+          <div class="col-6 col-md-3">
+            <select
+              id="filter-category"
+              class="form-select"
+              onchange="filterTransactions()"
+            >
+              <option value="All">All Categories</option>
+              <option value="Rent & Housing">Rent & Housing</option>
+              <option value="Food">Food</option>
+              <option value="Utilities">Utilities</option>
+              <option value="Salary">Salary</option>
+              <option value="General">General</option>
+              <option value="Entertainment">Entertainment</option>
+            </select>
+          </div>
+          <div class="col-6 col-md-3">
+            <select
+              id="sort-order"
+              class="form-select"
+              onchange="filterTransactions()"
+            >
+              <option value="newest">Newest First</option>
+              <option value="oldest">Oldest First</option>
+              <option value="highest">Highest Amount</option>
+              <option value="lowest">Lowest Amount</option>
+            </select>
+          </div>
         </div>
 
         <ul id="list" class="list"></ul>
 
         <!-- Export & Clear Buttons -->
-        <div
-          class="actions-container"
-          style="margin-top: 15px; display: flex; gap: 10px"
-        >
+        <div class="d-flex gap-2 mt-3">
           <button
             type="button"
-            id="export-btn"
-            class="btn"
+            class="btn btn-outline-primary flex-grow-1 font-weight-bold"
             onclick="exportToCSV()"
-            style="
-              flex: 1;
-              height: auto;
-              padding: 10px;
-              background-color: #2196f3;
-              color: white;
-              cursor: pointer;
-            "
           >
-            📥 Export CSV
+            <i class="bi bi-download me-1"></i> Export CSV
           </button>
 
           <button
             type="button"
-            id="clear-btn"
-            class="btn"
+            class="btn btn-outline-danger flex-grow-1 font-weight-bold"
             onclick="clearAllData()"
-            style="
-              flex: 1;
-              height: auto;
-              padding: 10px;
-              background-color: #f44336;
-              color: white;
-              cursor: pointer;
-            "
           >
-            🧹 Clear All Data
+            <i class="bi bi-trash3 me-1"></i> Clear All Data
           </button>
         </div>
       </section>
 
-      <!-- 7. CATEGORY BUDGETS (MOVED TO BOTTOM) -->
-      <section class="budgets-section" style="margin-top: 30px">
-        <h3>Category Budgets</h3>
-        <div id="budgets-container" class="budgets-container">
-          <!-- JavaScript dynamically renders progress bars here -->
-        </div>
+      <!-- 7. CATEGORY BUDGETS -->
+      <section class="card-box">
+        <h3 class="h5 mb-3">Category Budgets</h3>
+        <div id="budgets-container"></div>
       </section>
     </div>
 
-    <!-- Scripts -->
+    <!-- JavaScript Bundles -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="app.js"></script>
   </body>

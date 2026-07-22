@@ -11,13 +11,16 @@ const localStorageTransactions = JSON.parse(
 let dummyTransactions =
   localStorage.getItem("transactions") !== null ? localStorageTransactions : [];
 
-// Tracks whether we are currently editing an existing transaction (null = normal mode)
+// Tracks whether we are editing an existing transaction (null = creation mode)
 let editId = null;
 
-// Stores the active Chart.js instance so we can destroy/re-render it cleanly
+// Tracks active user selected type ("expense" or "income")
+let currentType = "expense";
+
+// Active Chart instance reference
 let categoryChart = null;
 
-// Pre-defined monthly budget caps for expense categories
+// Monthly budget caps for categories
 const categoryBudgets = {
   "Rent & Housing": 3500,
   Food: 200,
@@ -38,13 +41,14 @@ const form = document.getElementById("form");
 const text = document.getElementById("text");
 const amount = document.getElementById("amount");
 const category = document.getElementById("category");
+const submitBtn = document.getElementById("submit-btn");
 
 /* ==========================================================================
    3. STORAGE UTILITIES
    ========================================================================== */
 
 /**
- * Saves current transactions array into browser's localStorage
+ * Persists transactions array to browser localStorage
  */
 function updateLocalStorage() {
   localStorage.setItem("transactions", JSON.stringify(dummyTransactions));
@@ -54,11 +58,7 @@ function updateLocalStorage() {
    4. FINANCIAL CALCULATIONS & SUMMARY
    ========================================================================== */
 
-/**
- * Recalculates Total Balance, Total Income, and Total Expenses
- * and updates the respective UI element text content.
- */
-// Helper function to format numbers with commas & 2 decimals
+// Utility for clean dollar formatting
 function formatCurrency(number) {
   return Math.abs(number).toLocaleString("en-US", {
     minimumFractionDigits: 2,
@@ -66,6 +66,9 @@ function formatCurrency(number) {
   });
 }
 
+/**
+ * Updates numerical calculations for Total Balance, Income, and Expenses
+ */
 function updateValues() {
   const amounts = dummyTransactions.map((t) => t.amount);
   const totalNum = amounts.reduce((acc, item) => (acc += item), 0);
@@ -85,31 +88,48 @@ function updateValues() {
   if (moneyPlus) moneyPlus.innerText = `+$${formatCurrency(income)}`;
   if (moneyMinus) moneyMinus.innerText = `-$${formatCurrency(expense)}`;
 }
+
 /* ==========================================================================
-   5. TRANSACTION LIST RENDERING
+   5. TRANSACTION TYPE SELECTOR UX TOGGLE
    ========================================================================== */
 
 /**
- * Renders list items in the DOM based on provided dataset or default state
- * @param {Array|null} filteredList - Optional pre-filtered/sorted array
+ * Handles switching between Expense and Income mode in the form
+ */
+function setTransactionType(type) {
+  currentType = type;
+  const expenseBtn = document.getElementById("type-expense-btn");
+  const incomeBtn = document.getElementById("type-income-btn");
+
+  if (type === "expense") {
+    expenseBtn.className = "type-toggle-btn active-expense";
+    incomeBtn.className = "type-toggle-btn";
+  } else {
+    incomeBtn.className = "type-toggle-btn active-income";
+    expenseBtn.className = "type-toggle-btn";
+  }
+}
+
+/* ==========================================================================
+   6. TRANSACTION LIST RENDERING
+   ========================================================================== */
+
+/**
+ * Renders transaction rows with individual ghost action buttons
  */
 function renderHistory(filteredList = null) {
   if (!list) return;
 
-  // Clear existing items before redrawing
   list.innerHTML = "";
 
-  // Use passed filtered list or fall back to main transaction array
   const transactionsToDisplay =
     filteredList !== null ? filteredList : dummyTransactions;
 
-  // Empty state handling
   if (!transactionsToDisplay || transactionsToDisplay.length === 0) {
-    list.innerHTML = `<li class="empty-state" style="text-align: center; color: #888; padding: 15px;">No matching transactions found 🚀</li>`;
+    list.innerHTML = `<li style="text-align: center; color: var(--text-muted); padding: 20px; justify-content: center;">No transactions found 🚀</li>`;
     return;
   }
 
-  // Loop through transactions and append styled list items
   transactionsToDisplay.forEach((transaction) => {
     const isExpense = transaction.amount < 0;
     const sign = isExpense ? "-" : "+";
@@ -118,17 +138,34 @@ function renderHistory(filteredList = null) {
     const li = document.createElement("li");
     li.classList.add(borderClass);
 
+    // Separated ghost buttons for Edit and Delete
     li.innerHTML = `
-      <span>
-        ${transaction.text} 
-        <small style="opacity: 0.7;">(${transaction.category || "General"})</small>
-      </span>
-      <span>${sign}$${Math.abs(transaction.amount).toFixed(2)}</span>
       <div>
-        <!-- Edit Action Button -->
-        <button class="edit-btn" onclick="editTransaction(${transaction.id})" style="margin-right: 5px; cursor: pointer; background: transparent; border: none; font-size: 1rem;">✏️</button>
-        <!-- Delete Action Button -->
-        <button class="delete-btn" onclick="deleteTransaction(${transaction.id})" style="cursor: pointer; background: transparent; border: none; color: #f44336; font-weight: bold; font-size: 1rem;">❌</button>
+        <div class="fw-bold" style="color: var(--text-main);">${transaction.text}</div>
+        <small style="color: var(--text-muted);">${transaction.category || "General"}</small>
+      </div>
+      
+      <div class="d-flex align-items-center gap-3">
+        <span class="fw-bold" style="color: ${isExpense ? "var(--expense-color)" : "var(--income-color)"};">
+          ${sign}$${Math.abs(transaction.amount).toFixed(2)}
+        </span>
+        
+        <div class="action-buttons">
+          <button 
+            class="btn-action edit-btn" 
+            onclick="editTransaction(${transaction.id})"
+            title="Edit Transaction"
+          >
+            <i class="bi bi-pencil"></i>
+          </button>
+          <button 
+            class="btn-action delete-btn" 
+            onclick="deleteTransaction(${transaction.id})"
+            title="Delete Transaction"
+          >
+            <i class="bi bi-trash3"></i>
+          </button>
+        </div>
       </div>
     `;
 
@@ -137,12 +174,9 @@ function renderHistory(filteredList = null) {
 }
 
 /* ==========================================================================
-   6. SEARCH, CATEGORY FILTER & SORTING ENGINE
+   7. SEARCH, CATEGORY FILTER & SORTING ENGINE
    ========================================================================== */
 
-/**
- * Filters and sorts transactions based on UI input states
- */
 function filterTransactions() {
   const searchInput = document.getElementById("search-input");
   const filterCategory = document.getElementById("filter-category");
@@ -152,7 +186,6 @@ function filterTransactions() {
   const selectedCat = filterCategory ? filterCategory.value : "All";
   const order = sortOrder ? sortOrder.value : "newest";
 
-  // Step A: Filter by search query text & category selection
   let filtered = dummyTransactions.filter((transaction) => {
     const matchesSearch =
       transaction.text.toLowerCase().includes(query) ||
@@ -165,26 +198,21 @@ function filterTransactions() {
     return matchesSearch && matchesCategory;
   });
 
-  // Step B: Sort filtered results
   filtered = filtered.slice().sort((a, b) => {
-    if (order === "newest") return b.id - a.id; // Higher ID timestamp = newer
-    if (order === "oldest") return a.id - b.id; // Lower ID timestamp = older
+    if (order === "newest") return b.id - a.id;
+    if (order === "oldest") return a.id - b.id;
     if (order === "highest") return Math.abs(b.amount) - Math.abs(a.amount);
     if (order === "lowest") return Math.abs(a.amount) - Math.abs(b.amount);
     return 0;
   });
 
-  // Re-render UI list with final processed array
   renderHistory(filtered);
 }
 
 /* ==========================================================================
-   7. CHART.JS VISUALIZATION
+   8. CHART.JS VISUALIZATION
    ========================================================================== */
 
-/**
- * Aggregates expenses by category and renders the Doughnut Chart
- */
 function updateChart() {
   const canvas = document.getElementById("categoryChart");
   if (!canvas) return;
@@ -192,7 +220,6 @@ function updateChart() {
   const ctx = canvas.getContext("2d");
   const expenseTotals = {};
 
-  // Group and sum negative amounts (expenses) by category
   dummyTransactions
     .filter((t) => t.amount < 0)
     .forEach((t) => {
@@ -204,23 +231,26 @@ function updateChart() {
   const categories = Object.keys(expenseTotals);
   const amounts = Object.values(expenseTotals);
 
-  // Safely destroy previous instance to avoid canvas overlay glitches
   if (categoryChart) {
     categoryChart.destroy();
   }
 
-  // Handle chart visual state when no expenses exist
+  const isDark = document.body.classList.contains("dark-mode");
+  const textColor = isDark ? "#f8fafc" : "#0f172a";
+
   if (categories.length === 0) {
     categoryChart = new Chart(ctx, {
       type: "doughnut",
       data: {
         labels: ["No Expenses"],
-        datasets: [{ data: [1], backgroundColor: ["#334155"] }],
+        datasets: [
+          { data: [1], backgroundColor: [isDark ? "#334155" : "#e2e8f0"] },
+        ],
       },
       options: {
         responsive: true,
         plugins: {
-          legend: { labels: { color: "#ffffff" } },
+          legend: { labels: { color: textColor } },
           tooltip: { enabled: false },
         },
       },
@@ -228,7 +258,6 @@ function updateChart() {
     return;
   }
 
-  // Render populated chart
   categoryChart = new Chart(ctx, {
     type: "doughnut",
     data: {
@@ -237,12 +266,12 @@ function updateChart() {
         {
           data: amounts,
           backgroundColor: [
-            "#FF6384",
-            "#36A2EB",
-            "#FFCE56",
-            "#4BC0C0",
-            "#9966FF",
-            "#FF9F40",
+            "#f43f5e",
+            "#3b82f6",
+            "#f59e0b",
+            "#10b981",
+            "#8b5cf6",
+            "#ec4899",
           ],
         },
       ],
@@ -250,12 +279,9 @@ function updateChart() {
     options: {
       responsive: true,
       plugins: {
-        legend: {
-          labels: { color: "#ffffff" },
-        },
+        legend: { labels: { color: textColor } },
         tooltip: {
           callbacks: {
-            // Formats tooltips with exact dollar amounts and overall percentage
             label: function (context) {
               const label = context.label || "";
               const value = context.raw || 0;
@@ -271,19 +297,15 @@ function updateChart() {
 }
 
 /* ==========================================================================
-   8. CATEGORY BUDGET PROGRESS BARS
+   9. CATEGORY BUDGET PROGRESS BARS
    ========================================================================== */
 
-/**
- * Calculates spending vs limit per category and renders progress indicators
- */
 function renderBudgets() {
   const container = document.getElementById("budgets-container");
   if (!container) return;
 
   container.innerHTML = "";
 
-  // Sum spending per category
   const categoryTotals = {};
   dummyTransactions.forEach((t) => {
     if (t.amount < 0) {
@@ -293,25 +315,23 @@ function renderBudgets() {
     }
   });
 
-  // Render progress card for each configured budget category
   Object.keys(categoryBudgets).forEach((cat) => {
     const limit = categoryBudgets[cat];
     const spent = categoryTotals[cat] || 0;
     const percentage = Math.min((spent / limit) * 100, 100).toFixed(0);
 
     let statusClass = "status-ok";
-    let barColor = "#2ecc71"; // Green default
+    let barColor = "var(--income-color)";
     let statusText = `${percentage}% of $${limit} spent`;
 
-    // Dynamic warning/danger status states
     if (spent >= limit) {
       statusClass = "status-danger";
-      barColor = "#e74c3c"; // Red overflow
+      barColor = "var(--expense-color)";
       statusText = `⚠️ Over budget by $${(spent - limit).toFixed(2)}!`;
     } else if (percentage >= 75) {
       statusClass = "status-warning";
-      barColor = "#f39c12"; // Orange warning
-      statusText = `⚡ Warning: ${percentage}% of budget used`;
+      barColor = "var(--warning-color)";
+      statusText = `⚡ Warning: ${percentage}% used`;
     }
 
     container.innerHTML += `
@@ -330,46 +350,41 @@ function renderBudgets() {
 }
 
 /* ==========================================================================
-   9. TRANSACTION CRUD ACTIONS (CREATE, READ, UPDATE, DELETE)
+   10. TRANSACTION CRUD ACTIONS
    ========================================================================== */
 
-/**
- * Form submit handler to create new or edit existing transactions
- */
 function addTransaction(e) {
   e.preventDefault();
 
-  // Basic form validation
   if (text.value.trim() === "" || amount.value.trim() === "") {
     alert("Please enter both description and amount");
     return;
   }
 
-  // Branch 1: Update Existing Mode
+  // Calculate final sign based on selected type toggle (Expense = negative, Income = positive)
+  const numericVal = Math.abs(parseFloat(amount.value));
+  const finalAmount = currentType === "expense" ? -numericVal : numericVal;
+
   if (editId !== null) {
     dummyTransactions = dummyTransactions.map((t) => {
       if (t.id === editId) {
         return {
           ...t,
           text: text.value,
-          amount: +amount.value, // '+' converts string input to number
+          amount: finalAmount,
           category: category.value,
         };
       }
       return t;
     });
 
-    // Reset edit mode state
     editId = null;
-    const submitBtn = form.querySelector("button");
     if (submitBtn) submitBtn.innerText = "Add Transaction";
-  }
-  // Branch 2: Create New Mode
-  else {
+  } else {
     const transaction = {
-      id: Date.now(), // Unique ID based on current timestamp
+      id: Date.now(),
       text: text.value,
-      amount: +amount.value,
+      amount: finalAmount,
       category: category.value,
     };
     dummyTransactions.push(transaction);
@@ -378,40 +393,31 @@ function addTransaction(e) {
   updateLocalStorage();
   refreshAllViews();
 
-  // Clear inputs
   text.value = "";
   amount.value = "";
 }
 
-/**
- * Populates inputs with existing transaction values to initiate edit mode
- */
 function editTransaction(id) {
   const transaction = dummyTransactions.find((t) => t.id == id);
   if (!transaction) return;
 
   if (text) text.value = transaction.text;
-  if (amount) amount.value = transaction.amount;
+  if (amount) amount.value = Math.abs(transaction.amount);
   if (category) category.value = transaction.category || "General";
 
-  editId = transaction.id;
+  // Auto-set the Income/Expense toggle button based on stored amount
+  setTransactionType(transaction.amount < 0 ? "expense" : "income");
 
-  const submitBtn = form.querySelector("button");
+  editId = transaction.id;
   if (submitBtn) submitBtn.innerText = "Save Edit";
 }
 
-/**
- * Removes a transaction by ID
- */
 function deleteTransaction(id) {
   dummyTransactions = dummyTransactions.filter((t) => t.id !== id);
   updateLocalStorage();
   refreshAllViews();
 }
 
-/**
- * Purges all local transaction storage after confirmation
- */
 function clearAllData() {
   if (!dummyTransactions || dummyTransactions.length === 0) {
     alert("There are no transactions to clear!");
@@ -426,12 +432,9 @@ function clearAllData() {
 }
 
 /* ==========================================================================
-   10. DATA EXPORT (CSV FORMAT)
+   11. DATA EXPORT (CSV FORMAT)
    ========================================================================== */
 
-/**
- * Generates a structured CSV file from current state and initiates download
- */
 function exportToCSV() {
   if (!dummyTransactions || dummyTransactions.length === 0) {
     alert("No transactions to export!");
@@ -442,7 +445,6 @@ function exportToCSV() {
   let totalIncome = 0;
   let totalExpenses = 0;
 
-  // Build CSV rows and accumulate mathematical summary totals
   dummyTransactions.forEach((t) => {
     const val = Number(t.amount) || 0;
     const cat = t.category || "General";
@@ -454,14 +456,12 @@ function exportToCSV() {
 
   const netBalance = totalIncome + totalExpenses;
 
-  // Append summary section at bottom of CSV
   csvContent += `\n`;
   csvContent += `,"--- SUMMARY TOTALS ---",,\n`;
   csvContent += `,"Total Income",${totalIncome.toFixed(2)},\n`;
   csvContent += `,"Total Expenses",${totalExpenses.toFixed(2)},\n`;
   csvContent += `,"Net Balance",${netBalance.toFixed(2)},\n`;
 
-  // Create virtual link download trigger
   const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -474,12 +474,9 @@ function exportToCSV() {
 }
 
 /* ==========================================================================
-   11. THEME MANAGEMENT
+   12. THEME MANAGEMENT
    ========================================================================== */
 
-/**
- * Toggles light/dark mode class on <body> and persists choice to storage
- */
 function toggleTheme() {
   const themeToggle = document.getElementById("theme-toggle");
   const isDark = themeToggle ? themeToggle.checked : false;
@@ -491,9 +488,10 @@ function toggleTheme() {
     document.body.classList.remove("dark-mode");
     localStorage.setItem("theme", "light");
   }
+
+  updateChart(); // Re-render chart to update label colors
 }
 
-// Self-executing function to apply saved user theme on page render
 (function loadSavedTheme() {
   const savedTheme = localStorage.getItem("theme");
   const themeToggle = document.getElementById("theme-toggle");
@@ -508,12 +506,9 @@ function toggleTheme() {
 })();
 
 /* ==========================================================================
-   12. APPLICATION CONTROLLER / INITIALIZATION
+   13. APPLICATION CONTROLLER
    ========================================================================== */
 
-/**
- * Orchestrates a complete refresh across all UI modules
- */
 function refreshAllViews() {
   updateValues();
   filterTransactions();
@@ -521,16 +516,15 @@ function refreshAllViews() {
   renderBudgets();
 }
 
-// Attach Form Listener
 if (form) form.addEventListener("submit", addTransaction);
 
-// Expose handlers to global window scope for inline HTML event attributes (e.g., onclick="")
+// Expose handlers globally
 window.filterTransactions = filterTransactions;
 window.exportToCSV = exportToCSV;
 window.clearAllData = clearAllData;
 window.toggleTheme = toggleTheme;
 window.deleteTransaction = deleteTransaction;
 window.editTransaction = editTransaction;
+window.setTransactionType = setTransactionType;
 
-// Boot up app on script execution
 refreshAllViews();

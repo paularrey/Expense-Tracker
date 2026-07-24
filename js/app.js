@@ -1,26 +1,17 @@
+// js/app.js
+import { getStoredTransactions, saveTransactions } from "./storage.js";
+import { fetchExchangeRates } from "./api.js";
+
 /* ==========================================================================
-   1. LOCAL STORAGE & INITIAL STATE
+   1. STATE & VARIABLES
    ========================================================================== */
-
-// Retrieve saved transactions from Local Storage if available
-const localStorageTransactions = JSON.parse(
-  localStorage.getItem("transactions"),
-);
-
-// Fallback to empty array if no stored transactions exist
-let dummyTransactions =
-  localStorage.getItem("transactions") !== null ? localStorageTransactions : [];
-
-// Tracks whether we are editing an existing transaction (null = creation mode)
+let dummyTransactions = getStoredTransactions();
+let exchangeRates = {};
+let selectedCurrency = "USD";
 let editId = null;
-
-// Tracks active user selected type ("expense" or "income")
 let currentType = "expense";
-
-// Active Chart instance reference
 let categoryChart = null;
 
-// Monthly budget caps for categories
 const categoryBudgets = {
   "Rent & Housing": 3500,
   Food: 200,
@@ -30,9 +21,8 @@ const categoryBudgets = {
 };
 
 /* ==========================================================================
-   2. DOM ELEMENT REFERENCES
+   2. DOM REFERENCES
    ========================================================================== */
-
 const balance = document.getElementById("balance");
 const list = document.getElementById("list");
 const moneyPlus = document.getElementById("money-plus");
@@ -44,82 +34,58 @@ const category = document.getElementById("category");
 const submitBtn = document.getElementById("submit-btn");
 
 /* ==========================================================================
-   3. STORAGE UTILITIES
+   3. CURRENCY FORMATTER
    ========================================================================== */
-
-/**
- * Persists transactions array to browser localStorage
- */
-function updateLocalStorage() {
-  localStorage.setItem("transactions", JSON.stringify(dummyTransactions));
+function formatMoney(num) {
+  const rate = exchangeRates[selectedCurrency] || 1;
+  const converted = num * rate;
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: selectedCurrency,
+  }).format(converted);
 }
 
 /* ==========================================================================
-   4. FINANCIAL CALCULATIONS & SUMMARY
+   4. FINANCIAL CALCULATIONS
    ========================================================================== */
-
-// Utility for clean dollar formatting
-function formatCurrency(number) {
-  return Math.abs(number).toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
-
-/**
- * Updates numerical calculations for Total Balance, Income, and Expenses
- */
 function updateValues() {
   const amounts = dummyTransactions.map((t) => t.amount);
   const totalNum = amounts.reduce((acc, item) => (acc += item), 0);
 
-  const sign = totalNum < 0 ? "-" : "";
-  const formattedTotal = formatCurrency(totalNum);
-
   const income = amounts
     .filter((item) => item > 0)
     .reduce((acc, item) => (acc += item), 0);
-
   const expense = amounts
     .filter((item) => item < 0)
     .reduce((acc, item) => (acc += item), 0);
 
-  if (balance) balance.innerText = `${sign}$${formattedTotal}`;
-  if (moneyPlus) moneyPlus.innerText = `+$${formatCurrency(income)}`;
-  if (moneyMinus) moneyMinus.innerText = `-$${formatCurrency(expense)}`;
+  if (balance) balance.innerText = formatMoney(totalNum);
+  if (moneyPlus) moneyPlus.innerText = formatMoney(income);
+  if (moneyMinus) moneyMinus.innerText = formatMoney(expense);
 }
 
 /* ==========================================================================
-   5. TRANSACTION TYPE SELECTOR UX TOGGLE
+   5. TRANSACTION TYPE UX TOGGLE
    ========================================================================== */
-
-/**
- * Handles switching between Expense and Income mode in the form
- */
 function setTransactionType(type) {
   currentType = type;
   const expenseBtn = document.getElementById("type-expense-btn");
   const incomeBtn = document.getElementById("type-income-btn");
 
   if (type === "expense") {
-    expenseBtn.className = "type-toggle-btn active-expense";
-    incomeBtn.className = "type-toggle-btn";
+    if (expenseBtn) expenseBtn.className = "type-toggle-btn active-expense";
+    if (incomeBtn) incomeBtn.className = "type-toggle-btn";
   } else {
-    incomeBtn.className = "type-toggle-btn active-income";
-    expenseBtn.className = "type-toggle-btn";
+    if (incomeBtn) incomeBtn.className = "type-toggle-btn active-income";
+    if (expenseBtn) expenseBtn.className = "type-toggle-btn";
   }
 }
 
 /* ==========================================================================
-   6. TRANSACTION LIST RENDERING
+   6. RENDERING TRANSACTION LIST
    ========================================================================== */
-
-/**
- * Renders transaction rows with individual ghost action buttons
- */
 function renderHistory(filteredList = null) {
   if (!list) return;
-
   list.innerHTML = "";
 
   const transactionsToDisplay =
@@ -132,7 +98,6 @@ function renderHistory(filteredList = null) {
 
   transactionsToDisplay.forEach((transaction) => {
     const isExpense = transaction.amount < 0;
-    const sign = isExpense ? "-" : "+";
     const borderClass = isExpense ? "minus" : "plus";
 
     const li = document.createElement("li");
@@ -146,21 +111,13 @@ function renderHistory(filteredList = null) {
       
       <div class="transaction-right">
         <span class="fw-bold" style="font-size: 0.9rem; color: ${isExpense ? "var(--expense-color)" : "var(--income-color)"};">
-          ${sign}$${Math.abs(transaction.amount).toFixed(2)}
+          ${formatMoney(transaction.amount)}
         </span>
         
-        <button 
-          class="btn-action edit-btn" 
-          onclick="editTransaction(${transaction.id})"
-          title="Edit"
-        >
+        <button class="btn-action edit-btn" onclick="editTransaction(${transaction.id})" title="Edit">
           <i class="bi bi-pencil"></i>
         </button>
-        <button 
-          class="btn-action delete-btn" 
-          onclick="deleteTransaction(${transaction.id})"
-          title="Delete"
-        >
+        <button class="btn-action delete-btn" onclick="deleteTransaction(${transaction.id})" title="Delete">
           <i class="bi bi-trash3"></i>
         </button>
       </div>
@@ -169,10 +126,10 @@ function renderHistory(filteredList = null) {
     list.appendChild(li);
   });
 }
-/* ==========================================================================
-   7. SEARCH, CATEGORY FILTER & SORTING ENGINE
-   ========================================================================== */
 
+/* ==========================================================================
+   7. SEARCH & FILTER
+   ========================================================================== */
 function filterTransactions() {
   const searchInput = document.getElementById("search-input");
   const filterCategory = document.getElementById("filter-category");
@@ -182,15 +139,11 @@ function filterTransactions() {
   const selectedCat = filterCategory ? filterCategory.value : "All";
   const order = sortOrder ? sortOrder.value : "newest";
 
-  let filtered = dummyTransactions.filter((transaction) => {
+  let filtered = dummyTransactions.filter((t) => {
     const matchesSearch =
-      transaction.text.toLowerCase().includes(query) ||
-      (transaction.category &&
-        transaction.category.toLowerCase().includes(query));
-
-    const matchesCategory =
-      selectedCat === "All" || transaction.category === selectedCat;
-
+      t.text.toLowerCase().includes(query) ||
+      (t.category && t.category.toLowerCase().includes(query));
+    const matchesCategory = selectedCat === "All" || t.category === selectedCat;
     return matchesSearch && matchesCategory;
   });
 
@@ -206,9 +159,8 @@ function filterTransactions() {
 }
 
 /* ==========================================================================
-   8. CHART.JS VISUALIZATION
+   8. CHART VISUALIZATION
    ========================================================================== */
-
 function updateChart() {
   const canvas = document.getElementById("categoryChart");
   if (!canvas) return;
@@ -220,16 +172,13 @@ function updateChart() {
     .filter((t) => t.amount < 0)
     .forEach((t) => {
       const cat = t.category || "General";
-      const amt = Math.abs(t.amount);
-      expenseTotals[cat] = (expenseTotals[cat] || 0) + amt;
+      expenseTotals[cat] = (expenseTotals[cat] || 0) + Math.abs(t.amount);
     });
 
   const categories = Object.keys(expenseTotals);
   const amounts = Object.values(expenseTotals);
 
-  if (categoryChart) {
-    categoryChart.destroy();
-  }
+  if (categoryChart) categoryChart.destroy();
 
   const isDark = document.body.classList.contains("dark-mode");
   const textColor = isDark ? "#f8fafc" : "#0f172a";
@@ -245,10 +194,7 @@ function updateChart() {
       },
       options: {
         responsive: true,
-        plugins: {
-          legend: { labels: { color: textColor } },
-          tooltip: { enabled: false },
-        },
+        plugins: { legend: { labels: { color: textColor } } },
       },
     });
     return;
@@ -281,9 +227,7 @@ function updateChart() {
             label: function (context) {
               const label = context.label || "";
               const value = context.raw || 0;
-              const total = context.dataset.data.reduce((a, b) => a + b, 0);
-              const percentage = ((value / total) * 100).toFixed(1);
-              return ` ${label}: $${value.toFixed(2)} (${percentage}%)`;
+              return ` ${label}: ${formatMoney(-value)}`;
             },
           },
         },
@@ -295,19 +239,17 @@ function updateChart() {
 /* ==========================================================================
    9. CATEGORY BUDGET PROGRESS BARS
    ========================================================================== */
-
 function renderBudgets() {
   const container = document.getElementById("budgets-container");
   if (!container) return;
 
   container.innerHTML = "";
-
   const categoryTotals = {};
+
   dummyTransactions.forEach((t) => {
     if (t.amount < 0) {
       const cat = t.category || "General";
-      const spent = Math.abs(t.amount);
-      categoryTotals[cat] = (categoryTotals[cat] || 0) + spent;
+      categoryTotals[cat] = (categoryTotals[cat] || 0) + Math.abs(t.amount);
     }
   });
 
@@ -318,12 +260,12 @@ function renderBudgets() {
 
     let statusClass = "status-ok";
     let barColor = "var(--income-color)";
-    let statusText = `${percentage}% of $${limit} spent`;
+    let statusText = `${percentage}% spent`;
 
     if (spent >= limit) {
       statusClass = "status-danger";
       barColor = "var(--expense-color)";
-      statusText = `⚠️ Over budget by $${(spent - limit).toFixed(2)}!`;
+      statusText = `⚠️ Over limit by ${formatMoney(spent - limit)}!`;
     } else if (percentage >= 75) {
       statusClass = "status-warning";
       barColor = "var(--warning-color)";
@@ -334,7 +276,7 @@ function renderBudgets() {
       <div class="budget-card">
         <div class="budget-header">
           <span>${cat}</span>
-          <span>$${spent.toFixed(2)} / $${limit}</span>
+          <span>${formatMoney(spent)} / ${formatMoney(limit)}</span>
         </div>
         <div class="progress-bar-background">
           <div class="progress-bar-fill" style="width: ${percentage}%; background-color: ${barColor};"></div>
@@ -346,47 +288,49 @@ function renderBudgets() {
 }
 
 /* ==========================================================================
-   10. TRANSACTION CRUD ACTIONS
+   10. CRUD ACTIONS
    ========================================================================== */
-
 function addTransaction(e) {
   e.preventDefault();
 
   if (text.value.trim() === "" || amount.value.trim() === "") {
-    alert("Please enter both description and amount");
+    alert("Please enter description and amount");
     return;
   }
 
-  // Calculate final sign based on selected type toggle (Expense = negative, Income = positive)
-  const numericVal = Math.abs(parseFloat(amount.value));
-  const finalAmount = currentType === "expense" ? -numericVal : numericVal;
+  const inputVal = Math.abs(parseFloat(amount.value));
+
+  // 1. Get the live rate for your currently selected currency
+  const currentRate = exchangeRates[selectedCurrency] || 1;
+
+  // 2. Convert the entered amount (e.g. €100 or ₦5000) to base storage
+  const baseUSDAmount = inputVal / currentRate;
+  const finalAmount =
+    currentType === "expense" ? -baseUSDAmount : baseUSDAmount;
 
   if (editId !== null) {
-    dummyTransactions = dummyTransactions.map((t) => {
-      if (t.id === editId) {
-        return {
-          ...t,
-          text: text.value,
-          amount: finalAmount,
-          category: category.value,
-        };
-      }
-      return t;
-    });
-
+    dummyTransactions = dummyTransactions.map((t) =>
+      t.id === editId
+        ? {
+            ...t,
+            text: text.value,
+            amount: finalAmount,
+            category: category.value,
+          }
+        : t,
+    );
     editId = null;
     if (submitBtn) submitBtn.innerText = "Add Transaction";
   } else {
-    const transaction = {
+    dummyTransactions.push({
       id: Date.now(),
       text: text.value,
       amount: finalAmount,
       category: category.value,
-    };
-    dummyTransactions.push(transaction);
+    });
   }
 
-  updateLocalStorage();
+  saveTransactions(dummyTransactions);
   refreshAllViews();
 
   text.value = "";
@@ -394,118 +338,75 @@ function addTransaction(e) {
 }
 
 function editTransaction(id) {
-  const transaction = dummyTransactions.find((t) => t.id == id);
-  if (!transaction) return;
+  const t = dummyTransactions.find((item) => item.id == id);
+  if (!t) return;
 
-  if (text) text.value = transaction.text;
-  if (amount) amount.value = Math.abs(transaction.amount);
-  if (category) category.value = transaction.category || "General";
+  if (text) text.value = t.text;
+  if (amount) amount.value = Math.abs(t.amount);
+  if (category) category.value = t.category || "General";
 
-  // Auto-set the Income/Expense toggle button based on stored amount
-  setTransactionType(transaction.amount < 0 ? "expense" : "income");
-
-  editId = transaction.id;
+  setTransactionType(t.amount < 0 ? "expense" : "income");
+  editId = t.id;
   if (submitBtn) submitBtn.innerText = "Save Edit";
 }
 
 function deleteTransaction(id) {
   dummyTransactions = dummyTransactions.filter((t) => t.id !== id);
-  updateLocalStorage();
+  saveTransactions(dummyTransactions);
   refreshAllViews();
 }
 
 function clearAllData() {
-  if (!dummyTransactions || dummyTransactions.length === 0) {
-    alert("There are no transactions to clear!");
-    return;
-  }
-
-  if (confirm("Are you sure you want to delete ALL transactions?")) {
+  if (confirm("Clear all transactions?")) {
     dummyTransactions = [];
-    updateLocalStorage();
+    saveTransactions(dummyTransactions);
     refreshAllViews();
   }
 }
 
-/* ==========================================================================
-   11. DATA EXPORT (CSV FORMAT)
-   ========================================================================== */
-
 function exportToCSV() {
-  if (!dummyTransactions || dummyTransactions.length === 0) {
-    alert("No transactions to export!");
-    return;
-  }
-
-  let csvContent = "ID,Description,Amount,Category\n";
-  let totalIncome = 0;
-  let totalExpenses = 0;
-
+  if (!dummyTransactions.length) return alert("No data to export");
+  let csv = "ID,Description,Amount,Category\n";
   dummyTransactions.forEach((t) => {
-    const val = Number(t.amount) || 0;
-    const cat = t.category || "General";
-    csvContent += `${t.id},"${t.text}",${val},"${cat}"\n`;
-
-    if (val > 0) totalIncome += val;
-    else totalExpenses += val;
+    csv += `${t.id},"${t.text}",${t.amount},"${t.category || "General"}"\n`;
   });
-
-  const netBalance = totalIncome + totalExpenses;
-
-  csvContent += `\n`;
-  csvContent += `,"--- SUMMARY TOTALS ---",,\n`;
-  csvContent += `,"Total Income",${totalIncome.toFixed(2)},\n`;
-  csvContent += `,"Total Expenses",${totalExpenses.toFixed(2)},\n`;
-  csvContent += `,"Net Balance",${netBalance.toFixed(2)},\n`;
-
-  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const blob = new Blob([csv], { type: "text/csv;" });
   const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.setAttribute("download", "finance_dashboard_export.csv");
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "finance_export.csv";
+  a.click();
 }
 
 /* ==========================================================================
-   12. THEME MANAGEMENT
+   11. THEME MANAGEMENT
    ========================================================================== */
-
 function toggleTheme() {
   const themeToggle = document.getElementById("theme-toggle");
   const isDark = themeToggle ? themeToggle.checked : false;
-
-  if (isDark) {
-    document.body.classList.add("dark-mode");
-    localStorage.setItem("theme", "dark");
-  } else {
-    document.body.classList.remove("dark-mode");
-    localStorage.setItem("theme", "light");
-  }
-
-  updateChart(); // Re-render chart to update label colors
+  document.body.classList.toggle("dark-mode", isDark);
+  localStorage.setItem("theme", isDark ? "dark" : "light");
+  updateChart();
 }
 
 (function loadSavedTheme() {
   const savedTheme = localStorage.getItem("theme");
   const themeToggle = document.getElementById("theme-toggle");
-
   if (savedTheme === "dark") {
     document.body.classList.add("dark-mode");
     if (themeToggle) themeToggle.checked = true;
-  } else {
-    document.body.classList.remove("dark-mode");
-    if (themeToggle) themeToggle.checked = false;
   }
 })();
 
 /* ==========================================================================
-   13. APPLICATION CONTROLLER
+   12. APPLICATION CONTROLLER
    ========================================================================== */
-
 function refreshAllViews() {
+  const amountLabel = document.querySelector('label[for="amount"]');
+  if (amountLabel) {
+    amountLabel.innerText = `Amount (${selectedCurrency})`;
+  }
+
   updateValues();
   filterTransactions();
   updateChart();
@@ -514,7 +415,7 @@ function refreshAllViews() {
 
 if (form) form.addEventListener("submit", addTransaction);
 
-// Expose handlers globally
+// Expose handlers globally for HTML onclick events
 window.filterTransactions = filterTransactions;
 window.exportToCSV = exportToCSV;
 window.clearAllData = clearAllData;
@@ -523,4 +424,19 @@ window.deleteTransaction = deleteTransaction;
 window.editTransaction = editTransaction;
 window.setTransactionType = setTransactionType;
 
-refreshAllViews();
+async function initApp() {
+  const rates = await fetchExchangeRates();
+  if (rates) exchangeRates = rates;
+
+  const currencySelect = document.getElementById("currency-select");
+  if (currencySelect) {
+    currencySelect.addEventListener("change", (e) => {
+      selectedCurrency = e.target.value;
+      refreshAllViews();
+    });
+  }
+
+  refreshAllViews();
+}
+
+initApp();

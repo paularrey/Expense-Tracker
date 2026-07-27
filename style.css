@@ -478,23 +478,24 @@ input:checked + .slider:before {
 .currency-selector-box {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
   gap: 10px;
-  margin-bottom: 20px; /* Pushes the Total Balance card down */
+  width: 100%;
+  margin-top: 12px;
+  margin-bottom: 24px;
+  clear: both;
 }
 
 .currency-selector-box label {
   margin: 0;
   font-size: 0.9rem;
   font-weight: 600;
+  white-space: nowrap;
 }
 
-/* Modern, balanced dropdown styling */
 #currency-select {
   width: auto;
-  font-size: 0.875rem;
-  padding: 6px 32px 6px 12px; /* Top/Bottom balance + room on right for arrow */
+  max-width: 60%;
+  padding: 6px 12px;
   border-radius: 8px;
-  cursor: pointer;
-  background-position: right 10px center; /* Centers the dropdown arrow vertically */
 }

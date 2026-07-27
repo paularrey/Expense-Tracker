@@ -475,27 +475,37 @@ input:checked + .slider:before {
   }
 }
 /* Currency Container Alignment */
+
 .currency-selector-box {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  width: 100%;
-  margin-top: 12px;
-  margin-bottom: 24px;
-  clear: both;
+  justify-content: flex-end; /* Aligns dropdown to the far right */
+  width: 100%; /* Takes full container width */
+  margin-bottom: 16px; /* Pushes the card down so it stops touching */
+  margin-top: 8px;
 }
-
-.currency-selector-box label {
-  margin: 0;
-  font-size: 0.9rem;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
 #currency-select {
+  /* Removes default 1987 browser arrow & border */
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+
+  /* Sleek, compact styling */
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #f8fafc;
+  font-size: 0.8rem;
+  font-weight: 600;
+
+  /* Tight padding to keep it small */
+  padding: 4px 26px 4px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  outline: none;
+  cursor: pointer;
   width: auto;
-  max-width: 60%;
-  padding: 6px 12px;
-  border-radius: 8px;
+
+  /* Small custom arrow icon */
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 12px;
 }

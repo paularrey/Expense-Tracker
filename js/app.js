@@ -5,7 +5,7 @@ import { fetchExchangeRates } from "./api.js";
 /* ==========================================================================
    1. STATE & VARIABLES
    ========================================================================== */
-let dummyTransactions = getStoredTransactions();
+let transactions = getStoredTransactions();
 let exchangeRates = {};
 let selectedCurrency = "USD";
 let editId = null;
@@ -49,7 +49,7 @@ function formatMoney(num) {
    4. FINANCIAL CALCULATIONS
    ========================================================================== */
 function updateValues() {
-  const amounts = dummyTransactions.map((t) => t.amount);
+  const amounts = transactions.map((t) => t.amount);
   const totalNum = amounts.reduce((acc, item) => (acc += item), 0);
 
   const income = amounts
@@ -61,7 +61,7 @@ function updateValues() {
 
   if (balance) balance.innerText = formatMoney(totalNum);
   if (moneyPlus) moneyPlus.innerText = formatMoney(income);
-  if (moneyMinus) moneyMinus.innerText = formatMoney(expense);
+  if (moneyMinus) moneyMinus.innerText = formatMoney(Math.abs(expense));
 }
 
 /* ==========================================================================
@@ -89,7 +89,7 @@ function renderHistory(filteredList = null) {
   list.innerHTML = "";
 
   const transactionsToDisplay =
-    filteredList !== null ? filteredList : dummyTransactions;
+    filteredList !== null ? filteredList : transactions;
 
   if (!transactionsToDisplay || transactionsToDisplay.length === 0) {
     list.innerHTML = `<li style="text-align: center; color: var(--text-muted); padding: 16px; justify-content: center; width: 100%;">No transactions found 🚀</li>`;
@@ -111,7 +111,7 @@ function renderHistory(filteredList = null) {
       
       <div class="transaction-right">
         <span class="fw-bold" style="font-size: 0.9rem; color: ${isExpense ? "var(--expense-color)" : "var(--income-color)"};">
-          ${formatMoney(transaction.amount)}
+          ${formatMoney(Math.abs(transaction.amount))}
         </span>
         
         <button class="btn-action edit-btn" onclick="editTransaction(${transaction.id})" title="Edit">
@@ -139,7 +139,7 @@ function filterTransactions() {
   const selectedCat = filterCategory ? filterCategory.value : "All";
   const order = sortOrder ? sortOrder.value : "newest";
 
-  let filtered = dummyTransactions.filter((t) => {
+  let filtered = transactions.filter((t) => {
     const matchesSearch =
       t.text.toLowerCase().includes(query) ||
       (t.category && t.category.toLowerCase().includes(query));
@@ -168,7 +168,7 @@ function updateChart() {
   const ctx = canvas.getContext("2d");
   const expenseTotals = {};
 
-  dummyTransactions
+  transactions
     .filter((t) => t.amount < 0)
     .forEach((t) => {
       const cat = t.category || "General";
@@ -227,7 +227,7 @@ function updateChart() {
             label: function (context) {
               const label = context.label || "";
               const value = context.raw || 0;
-              return ` ${label}: ${formatMoney(-value)}`;
+              return ` ${label}: ${formatMoney(Math.abs(value))}`;
             },
           },
         },
@@ -246,7 +246,7 @@ function renderBudgets() {
   container.innerHTML = "";
   const categoryTotals = {};
 
-  dummyTransactions.forEach((t) => {
+  transactions.forEach((t) => {
     if (t.amount < 0) {
       const cat = t.category || "General";
       categoryTotals[cat] = (categoryTotals[cat] || 0) + Math.abs(t.amount);
@@ -309,7 +309,7 @@ function addTransaction(e) {
     currentType === "expense" ? -baseUSDAmount : baseUSDAmount;
 
   if (editId !== null) {
-    dummyTransactions = dummyTransactions.map((t) =>
+    transactions = transactions.map((t) =>
       t.id === editId
         ? {
             ...t,
@@ -322,7 +322,7 @@ function addTransaction(e) {
     editId = null;
     if (submitBtn) submitBtn.innerText = "Add Transaction";
   } else {
-    dummyTransactions.push({
+    transactions.push({
       id: Date.now(),
       text: text.value,
       amount: finalAmount,
@@ -330,7 +330,8 @@ function addTransaction(e) {
     });
   }
 
-  saveTransactions(dummyTransactions);
+  // FIXED TYPO HERE (ransactions -> transactions)
+  saveTransactions(transactions);
   refreshAllViews();
 
   text.value = "";
@@ -338,7 +339,7 @@ function addTransaction(e) {
 }
 
 function editTransaction(id) {
-  const t = dummyTransactions.find((item) => item.id == id);
+  const t = transactions.find((item) => item.id == id);
   if (!t) return;
 
   if (text) text.value = t.text;
@@ -351,23 +352,23 @@ function editTransaction(id) {
 }
 
 function deleteTransaction(id) {
-  dummyTransactions = dummyTransactions.filter((t) => t.id !== id);
-  saveTransactions(dummyTransactions);
+  transactions = transactions.filter((t) => t.id !== id);
+  saveTransactions(transactions);
   refreshAllViews();
 }
 
 function clearAllData() {
   if (confirm("Clear all transactions?")) {
-    dummyTransactions = [];
-    saveTransactions(dummyTransactions);
+    transactions = [];
+    saveTransactions(transactions);
     refreshAllViews();
   }
 }
 
 function exportToCSV() {
-  if (!dummyTransactions.length) return alert("No data to export");
+  if (!transactions.length) return alert("No data to export");
   let csv = "ID,Description,Amount,Category\n";
-  dummyTransactions.forEach((t) => {
+  transactions.forEach((t) => {
     csv += `${t.id},"${t.text}",${t.amount},"${t.category || "General"}"\n`;
   });
   const blob = new Blob([csv], { type: "text/csv;" });
@@ -436,6 +437,7 @@ async function initApp() {
     });
   }
 
+  // ⬇️ ADD THIS LINE AT THE BOTTOM OF initApp()
   refreshAllViews();
 }
 

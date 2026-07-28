@@ -243,13 +243,14 @@ function App() {
 
   // Export current transactions array as CSV file
   // Export current transactions array as CSV file with S/N and Total Row
+  // Export current transactions array as CSV file (Blob method for Chrome/Mobile support)
   const handleExportCSV = () => {
     if (transactions.length === 0) {
       alert("No transactions to export");
       return;
     }
 
-    // 1. Column Headers (S/N instead of raw ID)
+    // 1. Column Headers
     const headers = [
       "S/N",
       "Description",
@@ -257,39 +258,45 @@ function App() {
       "Category",
     ];
 
-    // 2. Data Rows with clean 1, 2, 3... Serial Numbers
+    // 2. Data Rows
     const rows = transactions.map((t, index) => {
       const convertedAmount = (t.amount * rate).toFixed(2);
-      // Escape quotes in description to prevent CSV formatting errors
       const cleanText = t.text.replace(/"/g, '""');
       return [index + 1, `"${cleanText}"`, convertedAmount, `"${t.category}"`];
     });
 
-    // 3. Calculate Total Balance across all transactions
+    // 3. Calculate Total Balance
     const totalAmount = transactions
       .reduce((sum, t) => sum + t.amount * rate, 0)
       .toFixed(2);
 
-    // 4. Create the Total Row at the bottom
+    // 4. Total Row
     const totalRow = ["", '"TOTAL"', totalAmount, ""];
 
-    // 5. Build CSV File String
-    const csvContent =
-      "data:text/csv;charset=utf-8," +
-      [
-        headers.join(","),
-        ...rows.map((row) => row.join(",")),
-        totalRow.join(","),
-      ].join("\n");
+    // 5. Build raw CSV text string
+    const csvString = [
+      headers.join(","),
+      ...rows.map((row) => row.join(",")),
+      totalRow.join(","),
+    ].join("\n");
 
-    // 6. Trigger Download
-    const encodedUri = encodeURI(csvContent);
+    // 6. Create a Blob Object with UTF-8 BOM (\uFEFF)
+    // This allows Chrome on Mobile/Desktop to recognize it as a real downloadable spreadsheet file
+    const blob = new Blob(["\uFEFF" + csvString], {
+      type: "text/csv;charset=utf-8;",
+    });
+    const url = URL.createObjectURL(blob);
+
+    // 7. Trigger download link
     const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
+    link.setAttribute("href", url);
     link.setAttribute("download", "smart_budget_transactions.csv");
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+
+    // Clean up memory
+    URL.revokeObjectURL(url);
   };
 
   // ==========================================

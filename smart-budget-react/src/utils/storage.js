@@ -1,4 +1,3 @@
-// js/storage.js
 const STORAGE_KEY = "transactions";
 
 export function getStoredTransactions() {

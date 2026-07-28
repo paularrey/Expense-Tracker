@@ -1,4 +1,3 @@
-// js/api.js
 const API_URL = "https://open.er-api.com/v6/latest/USD";
 
 export async function fetchExchangeRates() {

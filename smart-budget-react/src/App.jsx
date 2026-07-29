@@ -246,12 +246,12 @@ export default function App() {
       const existingUser = registeredUsers.find((u) => u.email === cleanEmail);
 
       if (!existingUser) {
-        setAuthError("Account not found. Please create an account first!");
+        setAuthError("Invalid email or incorrect password!");
         return;
       }
 
       if (existingUser.password !== authPassword) {
-        setAuthError("Incorrect password. Please try again.");
+        setAuthError("Invalid email or incorrect password!");
         return;
       }
 

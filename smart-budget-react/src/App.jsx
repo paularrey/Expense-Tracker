@@ -1,7 +1,7 @@
-// 1. Core React hooks for state management, side effects, and DOM references
+// 1. Core React hooks
 import { useState, useEffect, useRef } from "react";
 
-// 2. Lucide UI icons for buttons, balance visibility, auth, and badges
+// 2. Lucide UI icons
 import {
   Eye,
   EyeOff,
@@ -25,12 +25,12 @@ import {
   Mail,
   ArrowRight,
   ShieldCheck,
+  Menu,
+  X,
 } from "lucide-react";
 
-// 3. Storage utilities to load and save user transaction data locally
+// 3. Utilities
 import { getStoredTransactions, saveTransactions } from "./utils/storage";
-
-// 4. API utility to fetch live foreign exchange conversion rates
 import { fetchExchangeRates } from "./utils/api";
 
 const BUDGET_LIMITS = {
@@ -57,18 +57,23 @@ function BrandLogo({ size = "md" }) {
   );
 }
 
-function App() {
+export default function App() {
   // --- AUTHENTICATION STATE ---
   const [currentUser, setCurrentUser] = useState(() => {
-    const saved = localStorage.getItem("smart_budget_user");
+    const saved = localStorage.getItem("smart_budget_current_user");
     return saved ? JSON.parse(saved) : null;
   });
 
-  const [authMode, setAuthMode] = useState("login"); // "login" or "signup"
+  const [authMode, setAuthMode] = useState("login"); // "login" | "signup" | "forgot"
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [authName, setAuthName] = useState("");
   const [authError, setAuthError] = useState("");
+  const [authMessage, setAuthMessage] = useState("");
+
+  // --- MOBILE SIDEBAR STATE ---
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // --- APP DASHBOARD STATE ---
   const [hideBalance, setHideBalance] = useState(() => {
@@ -79,9 +84,9 @@ function App() {
   const [showPulseDetails, setShowPulseDetails] = useState(false);
   const [showActionsMenu, setShowActionsMenu] = useState(false);
 
-  // Collapsible sidebar accordion states
-  const [showChartSection, setShowChartSection] = useState(true);
-  const [showBudgetsSection, setShowBudgetsSection] = useState(true);
+  // Accordion states - DEFAULT TO FALSE SO THEY REMAIN HIDDEN UNTIL CLICKED
+  const [showChartSection, setShowChartSection] = useState(false);
+  const [showBudgetsSection, setShowBudgetsSection] = useState(false);
 
   const [transactions, setTransactions] = useState(() =>
     getStoredTransactions(),
@@ -101,9 +106,14 @@ function App() {
   const [filterCategory, setFilterCategory] = useState("All");
   const [sortBy, setSortBy] = useState("newest");
 
-  // React refs
+  // Chart refs
   const chartRef = useRef(null);
   const chartInstance = useRef(null);
+
+  // Persistent storage for registered user database
+  const getRegisteredUsers = () => {
+    return JSON.parse(localStorage.getItem("smart_budget_users_db") || "[]");
+  };
 
   // --- SIDE EFFECTS ---
   useEffect(() => {
@@ -122,40 +132,97 @@ function App() {
   const handleAuthSubmit = (e) => {
     e.preventDefault();
     setAuthError("");
+    setAuthMessage("");
 
-    if (!authEmail || !authPassword) {
-      setAuthError("Please fill in all required fields.");
+    const registeredUsers = getRegisteredUsers();
+    const cleanEmail = authEmail.trim().toLowerCase();
+
+    // 1. FORGOT PASSWORD FLOW
+    if (authMode === "forgot") {
+      if (!cleanEmail) {
+        setAuthError("Please enter your email address.");
+        return;
+      }
+      const existingUser = registeredUsers.find((u) => u.email === cleanEmail);
+      if (!existingUser) {
+        setAuthError("No account found with this email address.");
+        return;
+      }
+      setAuthMessage("Password reset instructions sent to your email!");
       return;
     }
 
+    // 2. SIGN UP FLOW
     if (authMode === "signup") {
-      if (!authName) {
-        setAuthError("Please enter your name.");
+      if (!authName || !cleanEmail || !authPassword) {
+        setAuthError("Please fill in all required fields.");
         return;
       }
 
-      const newUser = { name: authName.trim(), email: authEmail.trim() };
-      localStorage.setItem("smart_budget_user", JSON.stringify(newUser));
-      setCurrentUser(newUser);
-    } else {
-      // Simulate Login Verification
-      const existingUser = {
-        name: authName.trim() || authEmail.split("@")[0],
-        email: authEmail.trim(),
+      const existingUser = registeredUsers.find((u) => u.email === cleanEmail);
+      if (existingUser) {
+        setAuthError(
+          "An account with this email already exists. Please sign in.",
+        );
+        return;
+      }
+
+      const newUser = {
+        name: authName.trim(),
+        email: cleanEmail,
+        password: authPassword,
       };
-      localStorage.setItem("smart_budget_user", JSON.stringify(existingUser));
-      setCurrentUser(existingUser);
+
+      const updatedUsers = [...registeredUsers, newUser];
+      localStorage.setItem(
+        "smart_budget_users_db",
+        JSON.stringify(updatedUsers),
+      );
+      localStorage.setItem(
+        "smart_budget_current_user",
+        JSON.stringify(newUser),
+      );
+
+      setCurrentUser(newUser);
+      setAuthEmail("");
+      setAuthPassword("");
+      setAuthName("");
+      return;
     }
 
-    // Reset Auth Form
-    setAuthEmail("");
-    setAuthPassword("");
-    setAuthName("");
+    // 3. LOG IN FLOW
+    if (authMode === "login") {
+      if (!cleanEmail || !authPassword) {
+        setAuthError("Please enter both email and password.");
+        return;
+      }
+
+      const existingUser = registeredUsers.find((u) => u.email === cleanEmail);
+
+      if (!existingUser) {
+        setAuthError("Account not found. You need to create an account first!");
+        return;
+      }
+
+      if (existingUser.password !== authPassword) {
+        setAuthError("Incorrect password. Please try again.");
+        return;
+      }
+
+      localStorage.setItem(
+        "smart_budget_current_user",
+        JSON.stringify(existingUser),
+      );
+      setCurrentUser(existingUser);
+      setAuthEmail("");
+      setAuthPassword("");
+    }
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("smart_budget_user");
+    localStorage.removeItem("smart_budget_current_user");
     setCurrentUser(null);
+    setMobileMenuOpen(false);
   };
 
   const togglePrivacy = () => {
@@ -166,26 +233,10 @@ function App() {
     });
   };
 
-  const toggleTheme = () => {
-    setIsDark(!isDark);
-  };
-
-  const handleDashboardClick = (e) => {
-    e.preventDefault();
-    setSearchTerm("");
-    setFilterCategory("All");
-    setSortBy("newest");
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
+  const toggleTheme = () => setIsDark(!isDark);
 
   // --- FINANCIAL CALCULATIONS ---
-  const currencySymbols = {
-    USD: "$",
-    EUR: "€",
-    GBP: "£",
-    NGN: "₦",
-    XAF: "FR",
-  };
+  const currencySymbols = { USD: "$", EUR: "€", GBP: "£", NGN: "₦", XAF: "FR" };
   const symbol = currencySymbols[selectedCurrency] || "$";
   const rate =
     exchangeRates && exchangeRates[selectedCurrency]
@@ -255,6 +306,8 @@ function App() {
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        animation: { duration: 200 },
+        hover: { mode: null },
         plugins: {
           legend: {
             position: "right",
@@ -302,13 +355,10 @@ function App() {
       );
       setEditingId(null);
     } else {
-      const newTransaction = {
-        id: Date.now(),
-        text: text.trim(),
-        amount: finalAmount,
-        category,
-      };
-      setTransactions([newTransaction, ...transactions]);
+      setTransactions([
+        { id: Date.now(), text: text.trim(), amount: finalAmount, category },
+        ...transactions,
+      ]);
     }
 
     setText("");
@@ -323,9 +373,8 @@ function App() {
     setCurrentType(item.amount < 0 ? "expense" : "income");
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = (id) =>
     setTransactions(transactions.filter((item) => item.id !== id));
-  };
 
   const handleClearAll = () => {
     if (window.confirm("Are you sure you want to clear all transactions?")) {
@@ -334,10 +383,7 @@ function App() {
   };
 
   const handleExportCSV = () => {
-    if (transactions.length === 0) {
-      alert("No transactions to export");
-      return;
-    }
+    if (transactions.length === 0) return alert("No transactions to export");
 
     const headers = [
       "S/N",
@@ -345,11 +391,12 @@ function App() {
       `Amount (${selectedCurrency})`,
       "Category",
     ];
-    const rows = transactions.map((t, index) => {
-      const convertedAmount = (t.amount * rate).toFixed(2);
-      const cleanText = t.text.replace(/"/g, '""');
-      return [index + 1, `"${cleanText}"`, convertedAmount, `"${t.category}"`];
-    });
+    const rows = transactions.map((t, index) => [
+      index + 1,
+      `"${t.text.replace(/"/g, '""')}"`,
+      (t.amount * rate).toFixed(2),
+      `"${t.category}"`,
+    ]);
 
     const totalAmount = transactions
       .reduce((sum, t) => sum + t.amount * rate, 0)
@@ -389,37 +436,35 @@ function App() {
       if (sortBy === "newest") return b.id - a.id;
       if (sortBy === "oldest") return a.id - b.id;
       if (sortBy === "highest") return Math.abs(b.amount) - Math.abs(a.amount);
-      if (sortBy === "lowest") return Math.abs(a.amount) - Math.abs(b.amount);
+      if (sortBy === "lowest") return Math.abs(a.amount) - Math.abs(a.amount);
       return 0;
     });
 
-  // Dynamic Theme Classes
+  // Dynamic Theme Styling
   const bgMain = isDark
-    ? "bg-slate-950 text-slate-100"
+    ? "bg-[#070b14] text-slate-100"
     : "bg-slate-50 text-slate-900";
   const bgSidebar = isDark
-    ? "bg-slate-900/60 border-slate-800/60"
-    : "bg-white/80 border-slate-200/80";
-  const borderTone = isDark ? "border-slate-800/60" : "border-slate-200";
+    ? "bg-[#0a0f1d] border-slate-800/80"
+    : "bg-white border-slate-200";
+  const borderTone = isDark ? "border-slate-800/80" : "border-slate-200";
   const subtleText = isDark ? "text-slate-400" : "text-slate-500";
   const inputBg = isDark
-    ? "bg-slate-900/80 border-slate-800 focus:border-cyan-500"
-    : "bg-white border-slate-200 focus:border-indigo-500";
+    ? "bg-slate-900/90 border-slate-800 focus:border-cyan-500 text-white"
+    : "bg-white border-slate-200 focus:border-indigo-500 text-slate-900";
 
   // ==========================================
-  // VIEW 1: AUTHENTICATION SCREEN (IF LOGGED OUT)
+  // VIEW 1: AUTHENTICATION SCREEN
   // ==========================================
   if (!currentUser) {
     return (
       <div
         className={`min-h-screen flex flex-col justify-center items-center p-6 ${bgMain} relative overflow-hidden`}
       >
-        {/* Ambient Glow Effects */}
         <div className="absolute -top-32 -left-32 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
         <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none"></div>
 
         <div className="w-full max-w-md space-y-8 relative z-10">
-          {/* Logo Branding */}
           <div className="text-center space-y-3">
             <div className="flex justify-center">
               <BrandLogo size="lg" />
@@ -434,16 +479,16 @@ function App() {
             </div>
           </div>
 
-          {/* Auth Card */}
           <div
-            className={`p-8 rounded-2xl border ${borderTone} ${isDark ? "bg-slate-900/70 backdrop-blur-xl shadow-2xl" : "bg-white shadow-xl"} space-y-6`}
+            className={`p-8 rounded-2xl border ${borderTone} ${isDark ? "bg-[#0a0f1d] shadow-2xl" : "bg-white shadow-xl"} space-y-6`}
           >
-            {/* Mode Switcher Tabs */}
-            <div className="flex border-b border-slate-800/40 pb-2">
+            {/* Auth Mode Toggle Header */}
+            <div className="flex border-b border-slate-800/60 pb-2">
               <button
                 onClick={() => {
                   setAuthMode("login");
                   setAuthError("");
+                  setAuthMessage("");
                 }}
                 className={`flex-1 text-center pb-2 text-xs font-bold transition cursor-pointer ${
                   authMode === "login"
@@ -457,6 +502,7 @@ function App() {
                 onClick={() => {
                   setAuthMode("signup");
                   setAuthError("");
+                  setAuthMessage("");
                 }}
                 className={`flex-1 text-center pb-2 text-xs font-bold transition cursor-pointer ${
                   authMode === "signup"
@@ -471,6 +517,12 @@ function App() {
             {authError && (
               <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-medium">
                 {authError}
+              </div>
+            )}
+
+            {authMessage && (
+              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium">
+                {authMessage}
               </div>
             )}
 
@@ -509,32 +561,77 @@ function App() {
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <label className={`text-xs font-semibold ${subtleText}`}>
-                  Password
-                </label>
-                <div className="relative">
-                  <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
-                  <input
-                    type="password"
-                    className={`w-full text-xs rounded-xl pl-10 pr-4 py-3 border focus:outline-none ${inputBg}`}
-                    placeholder="••••••••"
-                    value={authPassword}
-                    onChange={(e) => setAuthPassword(e.target.value)}
-                  />
+              {authMode !== "forgot" && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className={`text-xs font-semibold ${subtleText}`}>
+                      Password
+                    </label>
+                    {authMode === "login" && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAuthMode("forgot");
+                          setAuthError("");
+                          setAuthMessage("");
+                        }}
+                        className="text-[11px] text-cyan-400 hover:underline cursor-pointer font-medium"
+                      >
+                        Forgot Password?
+                      </button>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      className={`w-full text-xs rounded-xl pl-10 pr-10 py-3 border focus:outline-none ${inputBg}`}
+                      placeholder="••••••••"
+                      value={authPassword}
+                      onChange={(e) => setAuthPassword(e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-3.5 text-slate-400 hover:text-slate-200 transition cursor-pointer"
+                    >
+                      {showPassword ? (
+                        <EyeOff className="w-4 h-4" />
+                      ) : (
+                        <Eye className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
 
               <button
                 type="submit"
                 className="w-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs py-3.5 rounded-xl transition cursor-pointer flex items-center justify-center gap-2 mt-2"
               >
                 <span>
-                  {authMode === "login" ? "Enter Workspace" : "Get Started Now"}
+                  {authMode === "login" && "Enter Workspace"}
+                  {authMode === "signup" && "Get Started Now"}
+                  {authMode === "forgot" && "Send Reset Link"}
                 </span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </form>
+
+            {authMode === "forgot" && (
+              <div className="text-center pt-2">
+                <button
+                  onClick={() => {
+                    setAuthMode("login");
+                    setAuthError("");
+                    setAuthMessage("");
+                  }}
+                  className="text-xs text-cyan-400 font-semibold hover:underline cursor-pointer"
+                >
+                  Return to Sign In
+                </button>
+              </div>
+            )}
 
             <div
               className={`flex items-center justify-center gap-1.5 text-[11px] ${subtleText} pt-2`}
@@ -549,75 +646,48 @@ function App() {
   }
 
   // ==========================================
-  // VIEW 2: MAIN WORKSPACE (IF LOGGED IN)
+  // VIEW 2: MAIN DASHBOARD WORKSPACE
   // ==========================================
   return (
     <div
       className={`min-h-screen flex flex-col lg:flex-row font-sans transition-colors duration-200 ${bgMain}`}
     >
-      {/* --- SIDEBAR PANEL --- */}
+      {/* --- SIDEBAR PANEL (RESPONSIVE & STATIC) --- */}
       <aside
-        className={`w-full lg:w-64 ${bgSidebar} border-b lg:border-b-0 lg:border-r p-6 flex flex-col justify-between shrink-0`}
+        className={`w-full lg:w-64 ${bgSidebar} border-b lg:border-b-0 lg:border-r p-4 lg:p-6 flex flex-col justify-between shrink-0`}
       >
-        <div className="space-y-8">
-          {/* Logo & App Title */}
-          <div className="flex items-center gap-3">
-            <BrandLogo />
-            <div>
-              <h1 className="font-bold text-base tracking-wide">
-                Smart Budget
-              </h1>
-              <p className={`text-xs ${subtleText}`}>Workspace</p>
+        {/* Top Header Row for Sidebar */}
+        <div>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <BrandLogo />
+              <div>
+                <h1 className="font-bold text-base tracking-wide leading-none">
+                  Smart Budget
+                </h1>
+                <p className={`text-[10px] ${subtleText} mt-1`}>Workspace</p>
+              </div>
             </div>
-          </div>
 
-          <nav className="space-y-1">
+            {/* Mobile Hamburger Menu Button */}
             <button
-              onClick={handleDashboardClick}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 text-sm font-semibold rounded-xl transition cursor-pointer ${
-                isDark
-                  ? "bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20"
-                  : "bg-indigo-50 text-indigo-600 hover:bg-indigo-100"
-              }`}
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className={`lg:hidden p-2 rounded-xl border ${borderTone} text-slate-300 hover:text-white cursor-pointer`}
             >
-              <Wallet className="w-4 h-4" />
-              Dashboard
+              {mobileMenuOpen ? (
+                <X className="w-5 h-5" />
+              ) : (
+                <Menu className="w-5 h-5" />
+              )}
             </button>
-          </nav>
+          </div>
         </div>
 
-        {/* Sidebar Footer: User Profile, Theme Switcher & Logout */}
-        <div className={`pt-4 border-t ${borderTone} space-y-4`}>
-          {/* Logged In User Profile Card */}
+        {/* Collapsible/Drawer Side Controls: Theme & Logout */}
+        <div
+          className={`${mobileMenuOpen ? "block" : "hidden lg:block"} pt-4 border-t ${borderTone} space-y-4 mt-6 lg:mt-0`}
+        >
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold text-xs uppercase">
-                {currentUser.name ? currentUser.name.charAt(0) : "U"}
-              </div>
-              <div>
-                <p className="text-xs font-bold leading-none">
-                  {currentUser.name || "User"}
-                </p>
-                <p
-                  className={`text-[10px] ${subtleText} mt-0.5 truncate max-w-[100px]`}
-                >
-                  {currentUser.email}
-                </p>
-              </div>
-            </div>
-
-            <button
-              onClick={handleLogout}
-              className={`p-2 rounded-xl text-slate-400 hover:text-rose-400 transition cursor-pointer`}
-              title="Sign Out"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
-          </div>
-
-          <div
-            className={`flex items-center justify-between pt-2 border-t ${borderTone}`}
-          >
             <span className={`text-xs font-medium ${subtleText}`}>Theme</span>
             <button
               onClick={toggleTheme}
@@ -625,39 +695,49 @@ function App() {
             >
               {isDark ? (
                 <>
-                  <Sun className="w-4 h-4 text-amber-400" />
+                  <Sun className="w-3.5 h-3.5 text-amber-400" />
                   <span>Light</span>
                 </>
               ) : (
                 <>
-                  <Moon className="w-4 h-4 text-indigo-600" />
+                  <Moon className="w-3.5 h-3.5 text-indigo-600" />
                   <span>Dark</span>
                 </>
               )}
             </button>
           </div>
+
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl border border-rose-500/20 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 text-xs font-bold transition cursor-pointer"
+          >
+            <LogOut className="w-4 h-4" />
+            <span>Log Out</span>
+          </button>
         </div>
       </aside>
 
       {/* --- MAIN UNIFIED WORKSPACE --- */}
-      <main className="flex-1 p-6 lg:p-10 space-y-8 overflow-y-auto max-w-5xl w-full">
+      <main className="flex-1 p-4 lg:p-10 space-y-8 overflow-y-auto max-w-5xl w-full">
         {/* TOP HEADER */}
         <header
           className={`flex items-center justify-between gap-4 pb-6 border-b ${borderTone}`}
         >
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Overview</h1>
+            <h1 className="text-xl lg:text-2xl font-bold tracking-tight">
+              Overview
+            </h1>
             <p className={`text-xs ${subtleText}`}>
               Track, analyze, & manage cash flow effortlessly
             </p>
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Actions Menu Trigger */}
+            {/* Actions Menu */}
             <div className="relative">
               <button
                 onClick={() => setShowActionsMenu(!showActionsMenu)}
-                className={`flex items-center gap-2 text-xs font-semibold px-3.5 py-2 rounded-xl border ${borderTone} transition cursor-pointer`}
+                className={`flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl border ${borderTone} transition cursor-pointer`}
               >
                 <SlidersHorizontal className="w-3.5 h-3.5" />
                 Actions
@@ -666,14 +746,20 @@ function App() {
 
               {showActionsMenu && (
                 <div
-                  className={`absolute right-0 mt-2 w-48 rounded-xl border ${borderTone} ${isDark ? "bg-slate-900 shadow-2xl" : "bg-white shadow-xl"} py-1 z-50`}
+                  className={`absolute right-0 mt-2 w-48 rounded-xl border ${borderTone} ${
+                    isDark ? "bg-[#0a0f1d] shadow-2xl" : "bg-white shadow-xl"
+                  } py-1 z-50`}
                 >
                   <button
                     onClick={() => {
                       handleExportCSV();
                       setShowActionsMenu(false);
                     }}
-                    className={`w-full flex items-center gap-2.5 px-4 py-2 text-xs font-medium transition ${isDark ? "hover:bg-slate-800 text-slate-200" : "hover:bg-slate-50 text-slate-700"}`}
+                    className={`w-full flex items-center gap-2.5 px-4 py-2 text-xs font-medium transition ${
+                      isDark
+                        ? "hover:bg-slate-800 text-slate-200"
+                        : "hover:bg-slate-50 text-slate-700"
+                    }`}
                   >
                     <Download className="w-3.5 h-3.5 text-cyan-500" />
                     Export CSV
@@ -683,7 +769,11 @@ function App() {
                       handleClearAll();
                       setShowActionsMenu(false);
                     }}
-                    className={`w-full flex items-center gap-2.5 px-4 py-2 text-xs font-medium transition ${isDark ? "hover:bg-slate-800 text-rose-400" : "hover:bg-slate-50 text-rose-600"}`}
+                    className={`w-full flex items-center gap-2.5 px-4 py-2 text-xs font-medium transition ${
+                      isDark
+                        ? "hover:bg-slate-800 text-rose-400"
+                        : "hover:bg-slate-50 text-rose-600"
+                    }`}
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                     Clear All Data
@@ -696,7 +786,7 @@ function App() {
             <select
               value={selectedCurrency}
               onChange={(e) => setSelectedCurrency(e.target.value)}
-              className={`text-xs font-semibold rounded-xl px-3 py-2 border ${borderTone} bg-transparent focus:outline-none cursor-pointer`}
+              className={`text-xs font-semibold rounded-xl px-2.5 py-2 border ${borderTone} bg-transparent focus:outline-none cursor-pointer`}
             >
               <option
                 value="USD"
@@ -732,7 +822,7 @@ function App() {
           </div>
         </header>
 
-        {/* UNIFIED HERO FINANCIAL ROW */}
+        {/* HERO BALANCE ROW */}
         <section className={`pb-6 border-b ${borderTone} space-y-6`}>
           <div className="flex items-center justify-between">
             <div>
@@ -742,7 +832,7 @@ function App() {
                 Total Net Balance
               </span>
               <div className="flex items-center gap-3 mt-1">
-                <h2 className="text-4xl font-extrabold tracking-tight">
+                <h2 className="text-3xl lg:text-4xl font-extrabold tracking-tight">
                   {hideBalance
                     ? "••••••••"
                     : `${symbol}${displayBalance.toLocaleString(undefined, {
@@ -752,7 +842,7 @@ function App() {
                 </h2>
                 <button
                   onClick={togglePrivacy}
-                  className={`p-2 rounded-xl text-slate-400 hover:text-cyan-400 transition cursor-pointer`}
+                  className="p-2 rounded-xl text-slate-400 hover:text-cyan-400 transition cursor-pointer"
                   title={hideBalance ? "Show balance" : "Hide balance"}
                 >
                   {hideBalance ? (
@@ -766,7 +856,7 @@ function App() {
 
             <button
               onClick={() => setShowPulseDetails(!showPulseDetails)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border ${borderTone} transition cursor-pointer text-xs font-semibold`}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl border ${borderTone} transition cursor-pointer text-xs font-semibold`}
             >
               <Activity className="w-4 h-4 text-cyan-400" />
               <span>{showPulseDetails ? "Hide Pulse" : "Financial Pulse"}</span>
@@ -808,16 +898,16 @@ function App() {
           )}
         </section>
 
-        {/* SEAMLESS TRANSACTION ENTRY FORM */}
+        {/* TRANSACTION ENTRY FORM */}
         <section className={`pb-8 border-b ${borderTone} space-y-4`}>
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold tracking-wide uppercase text-slate-400">
+            <h3 className="text-xs font-bold tracking-wide uppercase text-slate-400">
               {editingId ? "Edit Entry" : "New Entry"}
             </h3>
-            <div className="flex gap-1 p-1 rounded-xl bg-slate-800/20 border border-slate-800/40">
+            <div className="flex gap-1 p-1 rounded-xl bg-slate-800/30 border border-slate-800/40">
               <button
                 type="button"
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                className={`px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
                   currentType === "expense"
                     ? "bg-rose-500 text-white"
                     : "text-slate-400 hover:text-slate-200"
@@ -828,7 +918,7 @@ function App() {
               </button>
               <button
                 type="button"
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                className={`px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
                   currentType === "income"
                     ? "bg-emerald-500 text-white"
                     : "text-slate-400 hover:text-slate-200"
@@ -892,10 +982,10 @@ function App() {
           </form>
         </section>
 
-        {/* SEAMLESS TRANSACTION STREAM & CONTROLS */}
+        {/* ACTIVITY STREAM */}
         <section className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <h3 className="text-sm font-bold tracking-wide uppercase text-slate-400">
+            <h3 className="text-xs font-bold tracking-wide uppercase text-slate-400">
               Activity
             </h3>
 
@@ -938,7 +1028,7 @@ function App() {
           <ul className={`divide-y ${borderTone}`}>
             {filteredTransactions.length === 0 ? (
               <li className={`py-8 text-center text-xs ${subtleText}`}>
-                No transactions match your query
+                No transactions found
               </li>
             ) : (
               filteredTransactions.map((item) => {
@@ -967,7 +1057,7 @@ function App() {
                         })}
                       </span>
 
-                      <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 transition">
+                      <div className="flex items-center gap-1">
                         <button
                           onClick={() => handleEdit(item)}
                           className={`p-1.5 rounded-lg ${subtleText} hover:text-cyan-400 transition cursor-pointer`}
@@ -990,11 +1080,11 @@ function App() {
         </section>
       </main>
 
-      {/* --- RIGHT TELEMETRY & ANALYTICS SIDEBAR --- */}
+      {/* --- RIGHT TELEMETRY SIDEBAR --- */}
       <aside
         className={`w-full lg:w-80 ${bgSidebar} border-t lg:border-t-0 lg:border-l p-6 shrink-0 space-y-6`}
       >
-        {/* COLLAPSIBLE 1: Expense Breakdown Chart */}
+        {/* COLLAPSIBLE 1: Expense Breakdown Chart (CLOSED BY DEFAULT) */}
         <div className={`border-b ${borderTone} pb-4`}>
           <button
             onClick={() => setShowChartSection(!showChartSection)}
@@ -1020,7 +1110,7 @@ function App() {
           )}
         </div>
 
-        {/* COLLAPSIBLE 2: Category Budgets */}
+        {/* COLLAPSIBLE 2: Category Budgets (CLOSED BY DEFAULT) */}
         <div>
           <button
             onClick={() => setShowBudgetsSection(!showBudgetsSection)}
@@ -1094,5 +1184,3 @@ function App() {
     </div>
   );
 }
-
-export default App;
